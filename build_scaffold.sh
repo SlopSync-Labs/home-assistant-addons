@@ -1,33 +1,33 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Simple Home Assistant add-on scaffold creator.
-# Usage: ./build_scaffold.sh <addon-slug>
+# Simple Home Assistant app scaffold creator.
+# Usage: ./build_scaffold.sh <app-slug>
 
 # Updated: allow 0 or 1 args. If 1 arg provided, treat as initial slug suggestion.
 if [ "${#}" -gt 1 ]; then
   cat <<EOF
-Usage: ${0##*/} [addon-slug]
+Usage: ${0##*/} [app-slug]
 
 Examples:
   ${0##*/}                 # interactive prompts
-  ${0##*/} my-addon        # use 'my-addon' as initial slug suggestion
+  ${0##*/} my-app          # use 'my-app' as initial slug suggestion
 EOF
   exit 1
 fi
 
 INITIAL_SLUG="${1:-}"
 
-# Prompt for Add-on name (default from initial slug or current dir)
+# Prompt for App name (default from initial slug or current dir)
 if [ -n "${INITIAL_SLUG}" ]; then
   DEFAULT_NAME="$(echo "${INITIAL_SLUG}" | sed 's/-/ /g')"
 else
   DEFAULT_NAME="$(basename "$(pwd)")"
 fi
-read -r -p "Add-on name [${DEFAULT_NAME}]: " ADDON_NAME
+read -r -p "App name [${DEFAULT_NAME}]: " ADDON_NAME
 ADDON_NAME="${ADDON_NAME:-$DEFAULT_NAME}"
 
-# Suggest a slug derived from the add-on name
+# Suggest a slug derived from the app name
 _suggest_slug() {
   local s="$1"
   # try transliteration if iconv exists
@@ -44,7 +44,7 @@ DEFAULT_SLUG="${INITIAL_SLUG:-$SUGGESTED_SLUG}"
 
 # Prompt for slug with validation loop
 while :; do
-  read -r -p "Add-on slug [${DEFAULT_SLUG}]: " SLUG_INPUT
+  read -r -p "App slug [${DEFAULT_SLUG}]: " SLUG_INPUT
   SLUG_INPUT="${SLUG_INPUT:-$DEFAULT_SLUG}"
   # validate: non-empty and only lowercase alnum, hyphen, underscore
   if [ -z "$SLUG_INPUT" ]; then
@@ -55,7 +55,7 @@ while :; do
     SLUG="$SLUG_INPUT"
     break
   else
-    echo "Invalid slug. Use lowercase letters, numbers, hyphens or underscores (e.g. my-addon)."
+    echo "Invalid slug. Use lowercase letters, numbers, hyphens or underscores (e.g. my-app)."
   fi
 done
 
@@ -75,7 +75,7 @@ cat > "${ADDON_DIR}/config.json" <<JSON
   "name": "$(printf '%s' "$ADDON_NAME")",
   "version": "0.1.0",
   "slug": "$(printf '%s' "$SLUG")",
-  "description": "Minimal Home Assistant add-on scaffold.",
+  "description": "Minimal Home Assistant app scaffold.",
   "arch": ["armv7", "armhf", "aarch64", "amd64", "i386"],
   "startup": "services",
   "boot": "auto",
@@ -89,7 +89,7 @@ cat > "${ADDON_DIR}/Dockerfile" <<'DOCKER'
 ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest
 FROM ${BUILD_FROM}
 
-# Use bash as the default shell for the add-on
+# Use bash as the default shell for the app
 ENV LANG C.UTF-8
 
 # Copy files
@@ -104,10 +104,10 @@ cat > "${ADDON_DIR}/run.sh" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Minimal run placeholder for the add-on
-echo "Running add-on..."
+# Minimal run placeholder for the app
+echo "Running app..."
 sleep 1
-# Replace with your add-on startup commands
+# Replace with your app startup commands
 tail -f /dev/null
 SH
 
@@ -115,9 +115,9 @@ chmod +x "${ADDON_DIR}/run.sh"
 
 # README
 cat > "${ADDON_DIR}/README.md" <<MD
-# Add-on: ${ADDON_NAME}
+# App: ${ADDON_NAME}
 
-This is a minimal scaffold for a Home Assistant add-on.
+This is a minimal scaffold for a Home Assistant app.
 
 Replace fields in config.json, implement run.sh, and adjust the Dockerfile as needed.
 MD
@@ -126,5 +126,5 @@ MD
 echo "Scaffold created at: ${ADDON_DIR}"
 echo "Next steps:"
 echo "  - Edit ${ADDON_DIR}/config.json and ${ADDON_DIR}/run.sh"
-echo "  - Build and test your add-on according to Home Assistant add-on development docs"
+echo "  - Build and test your app according to Home Assistant app development docs"
 

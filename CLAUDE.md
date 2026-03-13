@@ -1,12 +1,12 @@
-# CLAUDE.md — Home Assistant Add-ons
+# CLAUDE.md — Home Assistant Apps
 
 This file gives Claude Code context for working in this repository.
 
 ## What This Repo Is
 
-A Home Assistant (HA) third-party add-on repository maintained by **SlopSync-Labs**.
+A Home Assistant (HA) third-party app repository maintained by **SlopSync-Labs**.
 Each top-level directory (except hidden dirs and root-level scripts) is a self-contained
-HA add-on. The repo is installable directly from HA's add-on store via its
+HA app. The repo is installable directly from HA's app store via its
 GitHub URL.
 
 ## Repository Layout
@@ -14,20 +14,20 @@ GitHub URL.
 ```text
 /
 ├── repository.yaml          # HA repository manifest (name, url, maintainer)
-├── build_scaffold.sh        # Interactive script to scaffold new add-ons
+├── build_scaffold.sh        # Interactive script to scaffold new apps
 ├── LICENSE                  # MIT, copyright SlopSync-Labs
 ├── README.md
 ├── CLAUDE.md                # This file
-└── <addon-slug>/            # One directory per add-on
-    ├── config.json          # HA add-on manifest (required)
+└── <app-slug>/              # One directory per app
+  ├── config.json          # HA app manifest (required)
     ├── Dockerfile           # Container definition (required)
     ├── run.sh               # Entrypoint script (required)
-    └── README.md            # Add-on documentation
+    └── README.md            # App documentation
 ```
 
-## Creating a New Add-on
+## Creating a New App
 
-Always use the scaffold script — do not create add-on directories by hand:
+Always use the scaffold script — do not create app directories by hand:
 
 ```bash
 ./build_scaffold.sh [optional-slug]
@@ -38,9 +38,9 @@ After scaffolding, the typical implementation workflow is:
 1. Edit `config.json` — set name, version, description, ports, options/schema
 2. Implement `run.sh` — replace the stub with real startup logic
 3. Adjust `Dockerfile` — swap base image if needed, add dependencies
-4. Write `README.md` — document what the add-on does, how to configure it
+4. Write `README.md` — document what the app does, how to configure it
 
-## Add-on Manifest (`config.json`) Key Fields
+## App Manifest (`config.json`) Key Fields
 
 | Field | Notes |
 | --- | --- |
@@ -50,7 +50,7 @@ After scaffolding, the typical implementation workflow is:
 | `arch` | Always include `["amd64", "armv7", "aarch64"]` at minimum |
 | `ports` | Map of `"container_port/proto": host_port` |
 | `options` / `schema` | User-configurable values and their types |
-| `startup` | `"services"` for long-running add-ons |
+| `startup` | `"services"` for long-running apps |
 | `boot` | `"auto"` to start on HA boot |
 
 ## Conventions
@@ -58,8 +58,8 @@ After scaffolding, the typical implementation workflow is:
 - **Slugs**: lowercase, alphanumeric, hyphens or underscores only —
   validated by the scaffold script
 - **Base images**: `python:3.x-alpine` for Python workloads;
-  `ghcr.io/home-assistant/<arch>-base` for shell-only add-ons
-- **Ports**: document every exposed port in both `config.json` and the add-on README
+  `ghcr.io/home-assistant/<arch>-base` for shell-only apps
+- **Ports**: document every exposed port in both `config.json` and the app README
 - **Scripts**: `run.sh` must be executable (`chmod +x`)
 - **Versioning**: semver — bump patch for fixes, minor for new features,
   major for breaking changes
@@ -68,7 +68,7 @@ After scaffolding, the typical implementation workflow is:
 
 ## What NOT to Do
 
-- Do not create add-on directories by hand — use `build_scaffold.sh`
+- Do not create app directories by hand — use `build_scaffold.sh`
 - Do not edit `repository.yaml` URL or maintainer fields without also
   updating the GitHub remote
 - Do not hardcode architecture-specific paths in `run.sh` — keep scripts portable
@@ -77,6 +77,6 @@ After scaffolding, the typical implementation workflow is:
 
 ## Key External References
 
-- [Home Assistant Add-on Development Docs](https://developers.home-assistant.io/docs/add-ons)
-- [HA Add-on Config Reference](https://developers.home-assistant.io/docs/add-ons/configuration)
+- [Home Assistant App Development Docs](https://developers.home-assistant.io/docs/add-ons)
+- [HA App Config Reference](https://developers.home-assistant.io/docs/add-ons/configuration)
 - [Base Images (ghcr.io/home-assistant)](https://github.com/home-assistant/docker-base)

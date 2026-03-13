@@ -1,22 +1,22 @@
-# SlopSync Labs — Home Assistant Add-ons
+# SlopSync Labs — Home Assistant Apps
 
-A curated collection of Home Assistant add-ons maintained by [SlopSync-Labs](https://github.com/SlopSync-Labs).
+A curated collection of Home Assistant apps maintained by [SlopSync-Labs](https://github.com/SlopSync-Labs).
 
 ## Adding This Repository to Home Assistant
 
-1. Navigate to **Settings → Add-ons → Add-on Store**
+1. Navigate to **Settings → Apps → App Store**
 2. Click the menu (⋮) in the top-right and select **Repositories**
 3. Add the following URL:
 
    ```text
-   https://github.com/SlopSync-Labs/home-assistant-addons
+   https://github.com/SlopSync-Labs/home-assistant-apps
    ```
 
-4. The add-ons listed below will appear in your store
+4. The apps listed below will appear in your store
 
-## Available Add-ons
+## Available Apps
 
-> Add-ons coming soon.
+> Apps coming soon.
 
 ## License
 

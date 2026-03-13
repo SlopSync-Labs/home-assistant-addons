@@ -37,7 +37,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Home Assistant / addon specific
+# Home Assistant / app specific
 secrets.yaml
 secrets.*
 .cache/
