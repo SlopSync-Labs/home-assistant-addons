@@ -13,19 +13,16 @@ This add-on runs the **latest upstream** [jc21/nginx-proxy-manager](https://gith
 ## Ports
 
 | Port | Protocol | Description         |
-|------|----------|---------------------|
+| ---- | -------- | ------------------- |
 | 80   | TCP      | HTTP proxy traffic  |
 | 81   | TCP      | Admin web UI        |
 | 443  | TCP      | HTTPS proxy traffic |
 
-## First-run credentials
+## Initial access
 
-On first start, log in to the admin UI at `http://<your-ha-ip>:81` with:
-
-- **Email:** `admin@example.com`
-- **Password:** `changeme`
-
-You will be prompted to change both immediately after login.
+After the app starts, open the admin UI at `http://<your-ha-ip>:81` and follow
+the onboarding/login flow shown by the current upstream Nginx Proxy Manager
+release.
 
 ## Data persistence
 
@@ -35,8 +32,16 @@ Certificates are kept at `/data/letsencrypt` and will survive restarts and updat
 
 ## Upgrading
 
-To track a new NPM release, update the `FROM` line in `Dockerfile` and bump `version`
-in `config.json` to match the new upstream tag (e.g. `2.15.0`).
+Update the app through the Home Assistant UI when a new version is published.
+
+Your Nginx Proxy Manager data, configuration, and certificates are stored under
+`/data`, so they persist across normal app upgrades and restarts.
+
+After upgrading, verify that:
+
+1. The app starts successfully.
+2. The admin UI is reachable on port 81.
+3. Existing proxy hosts, certificates, and settings are still present.
 
 ## Notes
 
