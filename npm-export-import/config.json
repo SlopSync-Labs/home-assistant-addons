@@ -1,0 +1,11 @@
+{
+  "name": "npm export import",
+  "version": "0.1.0",
+  "slug": "npm-export-import",
+  "description": "Minimal Home Assistant app scaffold.",
+  "arch": ["armv7", "armhf", "aarch64", "amd64", "i386"],
+  "startup": "services",
+  "boot": "auto",
+  "options": {},
+  "schema": {}
+}
