@@ -1,6 +1,6 @@
 {
   "name": "Nginx Proxy Manager",
-  "version": "2.14.0",
+  "version": "0.2.0",
   "slug": "nginx-proxy-manager",
   "description": "Expose your services easily and securely with a beautiful GUI for Nginx. Tracks the latest upstream jc21/nginx-proxy-manager release.",
   "url": "https://github.com/NginxProxyManager/nginx-proxy-manager",
@@ -20,6 +20,7 @@
     "81/tcp": "Admin web UI",
     "443/tcp": "HTTPS proxy traffic"
   },
+  "map": ["ssl:rw"],
   "options": {},
   "schema": {}
 }

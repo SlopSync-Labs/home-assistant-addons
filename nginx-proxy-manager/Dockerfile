@@ -4,12 +4,13 @@
 ARG BUILD_FROM
 FROM jc21/nginx-proxy-manager:2.14.0
 
-# Redirect Let's Encrypt certificate storage into the persistent /data volume.
+# Redirect Let's Encrypt certificate storage to /ssl/nginxproxymanager so certs
+# are accessible to other HA add-ons via HA's shared SSL directory.
 # NPM's prepare service uses `mountpoint -q /etc/letsencrypt` which requires a
 # real Docker volume mount — a symlink doesn't satisfy it. Patch the check to
 # a simple existence test so our symlink is accepted.
 RUN rm -rf /etc/letsencrypt \
-    && ln -s /data/letsencrypt /etc/letsencrypt \
+    && ln -s /ssl/nginxproxymanager /etc/letsencrypt \
     && file=$(grep -rl "letsencrypt is not mounted" /etc/s6-overlay/ /app/ 2>/dev/null | head -1) \
     && if [ -n "$file" ]; then \
          sed -i 's|mountpoint -q /etc/letsencrypt|test -e /etc/letsencrypt|g' "$file"; \

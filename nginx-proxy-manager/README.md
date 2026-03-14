@@ -1,7 +1,7 @@
 # Nginx Proxy Manager
 
 Expose your services easily and securely with a beautiful web GUI for Nginx.
-This add-on runs the **latest upstream** [jc21/nginx-proxy-manager](https://github.com/NginxProxyManager/nginx-proxy-manager) image (currently v2.14.0).
+This add-on (v0.2.0) runs the **latest upstream** [jc21/nginx-proxy-manager](https://github.com/NginxProxyManager/nginx-proxy-manager) image (currently v2.14.0).
 
 ## Features
 
@@ -26,9 +26,18 @@ release.
 
 ## Data persistence
 
-All NPM data (database, proxy configuration, Let's Encrypt certificates) is stored in
-the add-on's `/data` directory, which is mapped to HA's persistent add-on data store.
-Certificates are kept at `/data/letsencrypt` and will survive restarts and updates.
+NPM's database and configuration are stored in the add-on's `/data` directory and
+persist across restarts and updates.
+
+Let's Encrypt certificates are stored at `/ssl/nginxproxymanager` — HA's shared SSL
+directory. This means certificates issued by NPM are accessible to other HA add-ons
+that map the `ssl` volume (e.g. the HA core or other proxy add-ons). Certificate paths
+follow the standard Let's Encrypt layout:
+
+```text
+/ssl/nginxproxymanager/live/npm-1/fullchain.pem
+/ssl/nginxproxymanager/live/npm-1/privkey.pem
+```
 
 ## Upgrading
 
