@@ -1,11 +1,28 @@
 {
-  "name": "npm export import",
+  "name": "NPM Export Import",
   "version": "0.1.0",
   "slug": "npm-export-import",
-  "description": "Minimal Home Assistant app scaffold.",
-  "arch": ["armv7", "armhf", "aarch64", "amd64", "i386"],
+  "description": "Export and import Nginx Proxy Manager configuration (proxy hosts, redirections, streams, access lists, and SSL certificates) via a web UI.",
+  "url": "https://github.com/SlopSync-Labs/home-assistant-apps",
+  "arch": ["amd64", "aarch64", "armv7"],
   "startup": "services",
   "boot": "auto",
-  "options": {},
-  "schema": {}
+  "init": false,
+  "ingress": true,
+  "ingress_port": 8099,
+  "map": ["share:rw", "ssl:rw"],
+  "options": {
+    "npm_url": "http://homeassistant.local:81",
+    "npm_username": "admin@example.com",
+    "npm_password": "",
+    "schedule_enabled": false,
+    "schedule_interval_hours": 24
+  },
+  "schema": {
+    "npm_url": "str",
+    "npm_username": "str",
+    "npm_password": "password",
+    "schedule_enabled": "bool",
+    "schedule_interval_hours": "int?"
+  }
 }

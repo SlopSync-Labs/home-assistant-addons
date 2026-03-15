@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Minimal run placeholder for the app
-echo "Running app..."
-sleep 1
-# Replace with your app startup commands
-tail -f /dev/null
+echo "[npm-export-import] Starting..."
+exec python3 /app/npm_export_import.py

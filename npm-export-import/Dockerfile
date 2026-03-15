@@ -1,11 +1,13 @@
-ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest
-FROM ${BUILD_FROM}
+ARG BUILD_FROM
+FROM python:3.11-alpine
 
-# Use bash as the default shell for the app
-ENV LANG C.UTF-8
+ENV LANG=C.UTF-8
+WORKDIR /app
 
-# Copy files
-COPY run.sh /
+RUN pip install --no-cache-dir requests flask
+
+COPY run.sh /run.sh
+COPY npm_export_import.py /app/npm_export_import.py
 RUN chmod a+x /run.sh
 
-CMD [ "/run.sh" ]
+CMD ["/run.sh"]
