@@ -265,20 +265,35 @@ def import_all(cfg, import_file):
     al_id_map = _import_access_lists(base, json_headers, data.get("access_lists", []))
 
     for ph in data.get("proxy_hosts", []):
-        payload = _strip(ph)
-        old_al_id = payload.get("access_list_id", 0)
-        if old_al_id:
-            payload["access_list_id"] = al_id_map.get(old_al_id, 0)
-        old_cert_id = payload.get("certificate_id", 0)
-        if old_cert_id:
-            new_cert_id = cert_id_map.get(old_cert_id, 0)
-            payload["certificate_id"] = new_cert_id
-            if not new_cert_id:
-                payload["ssl_forced"] = False
-                _log(
-                    f"[import] WARNING: proxy_host {ph['id']} ({ph.get('domain_names')}) "
-                    f"had cert id={old_cert_id} which was not restored — SSL disabled"
-                )
+        old_al_id = ph.get("access_list_id", 0)
+        old_cert_id = ph.get("certificate_id", 0)
+        new_cert_id = cert_id_map.get(old_cert_id, 0) if old_cert_id else 0
+        ssl_forced = ph.get("ssl_forced", False)
+        if old_cert_id and not new_cert_id:
+            ssl_forced = False
+            _log(
+                f"[import] WARNING: proxy_host {ph['id']} ({ph.get('domain_names')}) "
+                f"had cert id={old_cert_id} which was not restored — SSL disabled"
+            )
+        payload = {
+            "domain_names":        ph.get("domain_names", []),
+            "forward_scheme":      ph.get("forward_scheme", "http"),
+            "forward_host":        ph.get("forward_host", ""),
+            "forward_port":        ph.get("forward_port", 80),
+            "access_list_id":      al_id_map.get(old_al_id, 0) if old_al_id else 0,
+            "certificate_id":      new_cert_id or None,
+            "ssl_forced":          ssl_forced,
+            "hsts_enabled":        ph.get("hsts_enabled", False),
+            "hsts_subdomains":     ph.get("hsts_subdomains", False),
+            "http2_support":       ph.get("http2_support", False),
+            "block_exploits":      ph.get("block_exploits", False),
+            "caching_enabled":     ph.get("caching_enabled", False),
+            "allow_websocket_upgrade": ph.get("allow_websocket_upgrade", False),
+            "locations":           ph.get("locations", []),
+            "advanced_config":     ph.get("advanced_config", ""),
+            "enabled":             ph.get("enabled", True),
+            "meta":                ph.get("meta", {}),
+        }
         resp = requests.post(
             f"{base}/api/nginx/proxy-hosts",
             headers=json_headers,
@@ -289,17 +304,31 @@ def import_all(cfg, import_file):
         _log(f"[import] proxy_host {ph['id']} -> {resp.json()['id']} ({ph.get('domain_names')})")
 
     for rh in data.get("redirection_hosts", []):
-        payload = _strip(rh)
-        old_cert_id = payload.get("certificate_id", 0)
-        if old_cert_id:
-            new_cert_id = cert_id_map.get(old_cert_id, 0)
-            payload["certificate_id"] = new_cert_id
-            if not new_cert_id:
-                payload["ssl_forced"] = False
-                _log(
-                    f"[import] WARNING: redirection_host {rh['id']} ({rh.get('domain_names')}) "
-                    f"had cert id={old_cert_id} which was not restored — SSL disabled"
-                )
+        old_cert_id = rh.get("certificate_id", 0)
+        new_cert_id = cert_id_map.get(old_cert_id, 0) if old_cert_id else 0
+        ssl_forced = rh.get("ssl_forced", False)
+        if old_cert_id and not new_cert_id:
+            ssl_forced = False
+            _log(
+                f"[import] WARNING: redirection_host {rh['id']} ({rh.get('domain_names')}) "
+                f"had cert id={old_cert_id} which was not restored — SSL disabled"
+            )
+        payload = {
+            "domain_names":        rh.get("domain_names", []),
+            "forward_scheme":      rh.get("forward_scheme", "https"),
+            "forward_http_code":   rh.get("forward_http_code", 302),
+            "forward_domain_name": rh.get("forward_domain_name", ""),
+            "preserve_path":       rh.get("preserve_path", False),
+            "certificate_id":      new_cert_id or None,
+            "ssl_forced":          ssl_forced,
+            "hsts_enabled":        rh.get("hsts_enabled", False),
+            "hsts_subdomains":     rh.get("hsts_subdomains", False),
+            "http2_support":       rh.get("http2_support", False),
+            "block_exploits":      rh.get("block_exploits", False),
+            "advanced_config":     rh.get("advanced_config", ""),
+            "enabled":             rh.get("enabled", True),
+            "meta":                rh.get("meta", {}),
+        }
         resp = requests.post(
             f"{base}/api/nginx/redirection-hosts",
             headers=json_headers,
@@ -310,7 +339,15 @@ def import_all(cfg, import_file):
         _log(f"[import] redirection_host {rh['id']} -> {resp.json()['id']}")
 
     for st in data.get("streams", []):
-        payload = _strip(st)
+        payload = {
+            "incoming_port":   st.get("incoming_port"),
+            "forwarding_host": st.get("forwarding_host", ""),
+            "forwarding_port": st.get("forwarding_port"),
+            "tcp_forwarding":  st.get("tcp_forwarding", True),
+            "udp_forwarding":  st.get("udp_forwarding", False),
+            "enabled":         st.get("enabled", True),
+            "meta":            st.get("meta", {}),
+        }
         resp = requests.post(
             f"{base}/api/nginx/streams",
             headers=json_headers,
