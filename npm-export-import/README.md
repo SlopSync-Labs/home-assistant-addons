@@ -29,6 +29,7 @@ Back up and restore your [Nginx Proxy Manager](https://nginxproxymanager.com/) c
 | `npm_url` | string | Yes | `http://homeassistant.local:81` | URL of your NPM instance |
 | `npm_username` | string | Yes | | NPM admin email |
 | `npm_password` | password | Yes | | NPM admin password |
+| `npm_token` | password | No | | Pre-generated Bearer token. Required for scheduled exports on 2FA-protected accounts (see note below) |
 | `schedule_enabled` | bool | No | `false` | Automatically export on a recurring interval |
 | `schedule_interval_hours` | integer | No | `24` | Hours between scheduled auto-exports |
 
@@ -81,7 +82,7 @@ Export files land in `/share/npm-export-import/` on the HA host, accessible via:
 - **Samba add-on** — browse to the `share` folder
 - **SSH add-on** — `/share/npm-export-import/`
 
-[version-shield]: https://img.shields.io/badge/version-0.1.2-blue.svg
+[version-shield]: https://img.shields.io/badge/version-0.1.3-blue.svg
 [project-stage-shield]: https://img.shields.io/badge/project%20stage-experimental-yellow.svg
 [maintenance-shield]: https://img.shields.io/maintenance/yes/2026.svg
 [forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg

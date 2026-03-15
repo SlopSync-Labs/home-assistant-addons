@@ -2,6 +2,23 @@
 
 All notable changes to the NPM Export Import add-on will be documented here.
 
+## [0.1.3] - 2026-03-15
+
+### Added
+
+- Interactive 2FA popup — when a 2FA-protected NPM account is detected, a modal
+  automatically appears asking for the authenticator code; after verification the
+  pending operation auto-retries without any further user action
+- `npm_token` config option — supply a pre-generated Bearer token to bypass
+  interactive auth entirely; required for scheduled exports on 2FA-protected accounts
+  since scheduled runs are unattended and cannot prompt for an OTP
+- Server-side JWT session cache — a successful login (interactive or password-based)
+  is cached for the token's lifetime (~24h) so repeated operations do not re-authenticate
+- `POST /api/auth/verify2fa` Flask endpoint — receives the challenge token and OTP
+  code, completes the NPM 2FA flow, and caches the resulting JWT
+
+---
+
 ## [0.1.2] - 2026-03-15
 
 ### Fixed
