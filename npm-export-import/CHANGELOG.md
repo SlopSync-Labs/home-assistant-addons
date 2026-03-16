@@ -1,6 +1,18 @@
+<!-- markdownlint-disable MD024 -->
 # Changelog
 
 All notable changes to the NPM Export Import add-on will be documented here.
+
+## [0.1.7] - 2026-03-15
+
+### Fixed
+
+- Access list import: deduplication GET failure is now a warning rather than
+  a hard abort; import continues without duplicate protection
+- Access list import: payload is logged before the POST so 500 errors are
+  diagnosable; uses `_check()` for consistent error handling and skip-on-conflict
+
+---
 
 ## [0.1.6] - 2026-03-15
 
@@ -79,6 +91,7 @@ All notable changes to the NPM Export Import add-on will be documented here.
 ## [0.1.1] - 2026-03-15
 
 ### Added
+
 - Flask web server with HA ingress UI — export and import are now triggered
   via buttons in the add-on panel rather than config-driven one-shot runs
 - **Export Now** button writes a timestamped JSON backup to
@@ -103,4 +116,5 @@ All notable changes to the NPM Export Import add-on will be documented here.
 ## [0.1.0] - 2026-03-15
 
 ### Added
+
 - Initial scaffold for the NPM Export Import add-on

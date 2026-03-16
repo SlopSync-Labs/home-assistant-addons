@@ -222,8 +222,11 @@ def _import_access_lists(base, headers, access_lists):
     """Create access lists. Returns old->new ID map."""
     # Build a name->id map of access lists that already exist on the target
     existing_resp = requests.get(f"{base}/api/nginx/access-lists", headers=headers, timeout=15)
-    existing_resp.raise_for_status()
-    existing_by_name = {al["name"]: al["id"] for al in existing_resp.json()}
+    if not existing_resp.ok:
+        _log(f"[import] WARNING: could not fetch existing access lists ({existing_resp.status_code}) — duplicate check skipped")
+        existing_by_name = {}
+    else:
+        existing_by_name = {al["name"]: al["id"] for al in existing_resp.json()}
 
     al_id_map = {}
     for al in access_lists:
@@ -251,13 +254,15 @@ def _import_access_lists(base, headers, access_lists):
                 for c in al.get("clients", [])
             ],
         }
+        _log(f"[import] access_list {old_id} ({name}) payload: {payload}")
         resp = requests.post(
             f"{base}/api/nginx/access-lists",
             headers=headers,
             json=payload,
             timeout=15,
         )
-        resp.raise_for_status()
+        if not _check(resp, f"access_list {old_id} ({name})"):
+            continue
         new_id = resp.json()["id"]
         al_id_map[old_id] = new_id
         _log(f"[import] access_list {old_id} -> {new_id} ({name})")
