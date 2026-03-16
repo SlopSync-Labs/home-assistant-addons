@@ -3,6 +3,19 @@
 
 All notable changes to the NPM Export Import add-on will be documented here.
 
+## [0.1.20] - 2026-03-15
+
+### Added
+
+- Restored interactive 2FA support — when NPM requires a one-time code, a modal
+  appears asking for the authenticator code; after verification the pending
+  export or import auto-retries automatically
+- `POST /api/auth/verify2fa` endpoint re-added; `server_id` now passed so the
+  session token is cached against the correct server
+- `pending_2fa` field added back to `/api/status` response
+
+---
+
 ## [0.1.19] - 2026-03-15
 
 ### Changed

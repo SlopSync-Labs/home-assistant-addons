@@ -33,6 +33,7 @@ _MASKED = "\u2022\u2022\u2022\u2022\u2022"  # sentinel: password field left unch
 _log_lines = collections.deque(maxlen=200)
 _op_lock = threading.Lock()
 _op_running = False
+_pending_2fa = None
 _sessions: dict = {}  # server_id -> {"token": ..., "expires": ...}
 
 
@@ -44,6 +45,11 @@ def _log(msg):
 # ---------------------------------------------------------------------------
 # Auth helpers
 # ---------------------------------------------------------------------------
+
+class TwoFactorRequired(Exception):
+    def __init__(self, challenge_token):
+        self.challenge_token = challenge_token
+
 
 def _get_session_token(server_id):
     s = _sessions.get(server_id, {})
@@ -74,9 +80,7 @@ def authenticate(server):
     resp.raise_for_status()
     data = resp.json()
     if data.get("requires_2fa"):
-        raise RuntimeError(
-            "NPM account has 2FA enabled — disable 2FA on your NPM account to use this add-on"
-        )
+        raise TwoFactorRequired(data["challenge_token"])
     _set_session_token(server["id"], data["token"], data["expires"])
     return {"Authorization": f"Bearer {data['token']}"}
 
@@ -562,6 +566,23 @@ _HTML = r"""<!DOCTYPE html>
     .server-actions { display: flex; gap: 0.35rem; flex-shrink: 0; margin-left: 0.5rem; }
     .btn-sm { padding: 0.28rem 0.6rem; font-size: 0.78rem; }
     #sf-error { font-size: 0.8rem; color: #e53935; min-height: 1.1em; }
+    /* OTP modal */
+    #otp-overlay { display: none; position: fixed; inset: 0;
+                   background: var(--overlay-bg); z-index: 100;
+                   align-items: center; justify-content: center; }
+    #otp-overlay.active { display: flex; }
+    #otp-modal { background: var(--surface); border-radius: 10px; padding: 1.75rem;
+                 width: 320px; box-shadow: 0 8px 32px rgba(0,0,0,0.25); }
+    #otp-modal h2 { font-size: 1rem; margin-bottom: 0.5rem; color: var(--text-h2); }
+    #otp-modal p  { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; }
+    #otp-input { width: 100%; padding: 0.6rem 0.75rem; font-size: 1.4rem;
+                 letter-spacing: 0.25rem; text-align: center;
+                 border: 1px solid var(--input-border); border-radius: 5px;
+                 margin-bottom: 0.75rem; font-family: monospace;
+                 background: var(--input-bg); color: var(--input-color); }
+    #otp-input:focus { outline: none; border-color: #03a9f4; }
+    #otp-error { font-size: 0.8rem; color: #e53935; min-height: 1.2em; margin-bottom: 0.5rem; }
+    #otp-modal .actions { display: flex; justify-content: flex-end; }
     /* Tabs */
     .tabs { display: flex; gap: 0.25rem; margin-bottom: 1.25rem; justify-content: center; }
     .tab  { background: var(--tab-bg); color: var(--tab-fg); border-radius: 6px 6px 0 0;
@@ -654,6 +675,21 @@ _HTML = r"""<!DOCTYPE html>
   </div>
 
 </div><!-- .container -->
+
+  <div id="otp-overlay">
+    <div id="otp-modal">
+      <h2>Two-factor authentication</h2>
+      <p>Enter the 6-digit code from your authenticator app.</p>
+      <input id="otp-input" type="text" inputmode="numeric" maxlength="8"
+             placeholder="000000" autocomplete="one-time-code"
+             onkeydown="if(event.key==='Enter') submitOtp()">
+      <div id="otp-error"></div>
+      <div class="actions">
+        <button class="btn-primary" onclick="submitOtp()">Verify</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // Theme
     function applyTheme(theme) {
@@ -683,6 +719,8 @@ _HTML = r"""<!DOCTYPE html>
     let _deleteServerBtn = null;
     let _deleteServerTimer = null;
     let _op_running_client = false;
+    let _pendingOp = null;
+    let _challengeToken = null;
 
     function showTab(name, btn) {
       document.getElementById('tab-operations').style.display = name === 'operations' ? '' : 'none';
@@ -817,12 +855,24 @@ _HTML = r"""<!DOCTYPE html>
       try {
         const d = await (await fetch(base + '/api/status')).json();
         _op_running_client = d.running;
-        const busy = d.running;
+        const busy = d.running || !!d.pending_2fa;
         document.getElementById('btn-export').disabled = busy || !_servers.length;
         document.getElementById('btn-import').disabled = busy || !_selectedFile;
         document.getElementById('btn-delete').disabled = busy || !_selectedFile;
         document.getElementById('op-status-bar').textContent =
           d.running ? '\u23f3 Operation in progress\u2026' : '';
+
+        if (d.pending_2fa && !_challengeToken) {
+          _challengeToken = d.pending_2fa;
+          document.getElementById('otp-error').textContent = '';
+          document.getElementById('otp-input').value = '';
+          document.getElementById('otp-overlay').classList.add('active');
+          document.getElementById('otp-input').focus();
+        }
+        if (!d.pending_2fa && _challengeToken) {
+          _challengeToken = null;
+          document.getElementById('otp-overlay').classList.remove('active');
+        }
       } catch (_) {}
     }
 
@@ -873,6 +923,7 @@ _HTML = r"""<!DOCTYPE html>
       const serverId = document.getElementById('sel-export-server').value;
       if (!serverId) return;
       saveServerPref('export', serverId);
+      _pendingOp = { type: 'export', serverId };
       document.getElementById('btn-export').disabled = true;
       document.getElementById('btn-import').disabled = true;
       document.getElementById('op-status-bar').textContent = '\u23f3 Starting export\u2026';
@@ -905,6 +956,7 @@ _HTML = r"""<!DOCTYPE html>
       const serverId = document.getElementById('sel-import-server').value;
       if (!serverId) return;
       saveServerPref('import', serverId);
+      _pendingOp = { type: 'import', serverId, filename: _selectedFile };
       btn.disabled = true;
       document.getElementById('btn-export').disabled = true;
       document.getElementById('op-status-bar').textContent = '\u23f3 Starting import\u2026';
@@ -945,6 +997,45 @@ _HTML = r"""<!DOCTYPE html>
         .then(() => loadFiles());
     }
 
+    async function submitOtp() {
+      const code = document.getElementById('otp-input').value.trim();
+      if (!code) return;
+      document.getElementById('otp-error').textContent = '';
+      if (!_pendingOp) return;
+      const r = await fetch(base + '/api/auth/verify2fa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge_token: _challengeToken, code, server_id: _pendingOp.serverId })
+      });
+      if (!r.ok) {
+        const d = await r.json();
+        document.getElementById('otp-error').textContent = d.error || 'Verification failed';
+        document.getElementById('otp-input').select();
+        return;
+      }
+      document.getElementById('otp-overlay').classList.remove('active');
+      _challengeToken = null;
+      document.getElementById('op-status-bar').textContent = '\u2713 Authenticated';
+      const op = _pendingOp;
+      _pendingOp = null;
+      if (op.type === 'export') {
+        document.getElementById('btn-export').disabled = true;
+        document.getElementById('op-status-bar').textContent = '\u23f3 Starting export\u2026';
+        fetch(base + '/api/export', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ server_id: op.serverId })
+        });
+      } else if (op.type === 'import') {
+        document.getElementById('btn-export').disabled = true;
+        document.getElementById('btn-import').disabled = true;
+        document.getElementById('op-status-bar').textContent = '\u23f3 Starting import\u2026';
+        fetch(base + '/api/import', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ server_id: op.serverId, filename: op.filename })
+        });
+      }
+    }
+
     loadServers(); loadStatus(); loadFiles(); loadLogs();
     setInterval(() => Promise.all([loadStatus(), loadLogs()]), 2000);
     setInterval(loadFiles, 8000);
@@ -969,7 +1060,7 @@ def index():
 
 @app.route("/api/status")
 def api_status():
-    return jsonify({"running": _op_running})
+    return jsonify({"running": _op_running, "pending_2fa": _pending_2fa})
 
 
 @app.route("/api/files")
@@ -1059,6 +1150,36 @@ def api_logs():
     return jsonify({"lines": list(_log_lines)})
 
 
+@app.route("/api/auth/verify2fa", methods=["POST"])
+def api_verify2fa():
+    global _pending_2fa
+    body = flask_request.get_json() or {}
+    challenge_token = body.get("challenge_token", "").strip()
+    code = body.get("code", "").strip()
+    if not challenge_token or not code:
+        return jsonify({"error": "challenge_token and code required"}), 400
+    # Find the server whose session we need — look up by pending challenge
+    # We verify against whichever server triggered the 2FA prompt
+    server_id = body.get("server_id", "").strip()
+    server = _get_server(server_id)
+    if not server:
+        return jsonify({"error": "server not found"}), 404
+    url = f"{server['npm_url'].rstrip('/')}/api/tokens/2fa"
+    resp = requests.post(
+        url,
+        json={"challenge_token": challenge_token, "code": code},
+        timeout=15,
+    )
+    if resp.status_code == 401:
+        return jsonify({"error": "Invalid OTP code — check your authenticator app"}), 401
+    resp.raise_for_status()
+    data = resp.json()
+    _set_session_token(server_id, data["token"], data["expires"])
+    _pending_2fa = None
+    _log("[auth] 2FA verified — session token cached")
+    return jsonify({"status": "authenticated"})
+
+
 @app.route("/api/export", methods=["POST"])
 def api_export():
     global _op_running
@@ -1072,9 +1193,12 @@ def api_export():
     _op_running = True
 
     def run():
-        global _op_running
+        global _op_running, _pending_2fa
         try:
             export_all(server)
+        except TwoFactorRequired as exc:
+            _pending_2fa = exc.challenge_token
+            _log("[auth] 2FA required — enter your code in the prompt")
         except Exception as exc:
             _log(f"[export] ERROR: {exc}")
         finally:
@@ -1101,9 +1225,12 @@ def api_import():
     _op_running = True
 
     def run():
-        global _op_running
+        global _op_running, _pending_2fa
         try:
             import_all(server, filename)
+        except TwoFactorRequired as exc:
+            _pending_2fa = exc.challenge_token
+            _log("[auth] 2FA required — enter your code in the prompt")
         except Exception as exc:
             _log(f"[import] ERROR: {exc}")
         finally:
