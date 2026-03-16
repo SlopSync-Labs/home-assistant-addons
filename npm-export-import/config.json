@@ -10,7 +10,7 @@
   "init": false,
   "ingress": true,
   "ingress_port": 8099,
-  "panel_icon": "mdi:swap-vertical",
+  "panel_icon": "mdi:swap-vertical-bold",
   "map": ["share:rw", "ssl:rw"],
   "options": {},
   "schema": {}
