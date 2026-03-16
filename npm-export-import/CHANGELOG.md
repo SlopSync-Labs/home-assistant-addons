@@ -3,6 +3,17 @@
 
 All notable changes to the NPM Export Import add-on will be documented here.
 
+## [0.1.22] - 2026-03-15
+
+### Fixed
+
+- After entering a 2FA code, the pending export or import now actually starts —
+  retry `fetch()` calls were fire-and-forget (not awaited); failures were silently
+  swallowed. Both retries are now `await`ed with explicit error handling that
+  surfaces failures in the status bar.
+
+---
+
 ## [0.1.21] - 2026-03-15
 
 ### Fixed

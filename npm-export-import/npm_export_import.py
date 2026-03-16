@@ -1017,23 +1017,38 @@ _HTML = r"""<!DOCTYPE html>
       document.getElementById('otp-overlay').classList.remove('active');
       const op = _pendingOp;
       _pendingOp = null;
-      if (op && op.type === 'export') {
+      if (!op) {
+        document.getElementById('op-status-bar').textContent = '\u2713 Authenticated \u2014 retry your operation';
+        return;
+      }
+      if (op.type === 'export') {
         document.getElementById('btn-export').disabled = true;
         document.getElementById('op-status-bar').textContent = '\u23f3 Starting export\u2026';
-        fetch(base + '/api/export', {
+        const er = await fetch(base + '/api/export', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ server_id: op.serverId })
         });
-      } else if (op && op.type === 'import') {
-        document.getElementById('btn-export').disabled = true;
+        if (!er.ok) {
+          const ed = await er.json().catch(() => ({}));
+          document.getElementById('op-status-bar').textContent =
+            '\u2717 ' + (ed.error || 'Failed to start export');
+          document.getElementById('btn-export').disabled = false;
+        }
+      } else if (op.type === 'import') {
         document.getElementById('btn-import').disabled = true;
+        document.getElementById('btn-export').disabled = true;
         document.getElementById('op-status-bar').textContent = '\u23f3 Starting import\u2026';
-        fetch(base + '/api/import', {
+        const ir = await fetch(base + '/api/import', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ server_id: op.serverId, filename: op.filename })
         });
-      } else {
-        document.getElementById('op-status-bar').textContent = '\u2713 Authenticated \u2014 retry your operation';
+        if (!ir.ok) {
+          const id2 = await ir.json().catch(() => ({}));
+          document.getElementById('op-status-bar').textContent =
+            '\u2717 ' + (id2.error || 'Failed to start import');
+          document.getElementById('btn-export').disabled = false;
+          document.getElementById('btn-import').disabled = false;
+        }
       }
     }
 
