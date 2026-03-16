@@ -1,6 +1,6 @@
 {
   "name": "NPM Export Import",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "slug": "npm-export-import",
   "description": "Export and import Nginx Proxy Manager configuration (proxy hosts, redirections, streams, access lists, and SSL certificates) via a web UI.",
   "url": "https://github.com/SlopSync-Labs/home-assistant-apps",

@@ -3,6 +3,16 @@
 
 All notable changes to the NPM Export Import add-on will be documented here.
 
+## [0.1.19] - 2026-03-15
+
+### Changed
+
+- NPM servers list and dropdowns now sorted alphabetically by name
+- Name input field now styled consistently with other form fields
+- Content constrained to 640 px max-width; tab bar centered
+
+---
+
 ## [0.1.18] - 2026-03-15
 
 ### Added

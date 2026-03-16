@@ -502,6 +502,7 @@ _HTML = r"""<!DOCTYPE html>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
            background: var(--bg); color: var(--text); padding: 1.5rem;
            transition: background 0.2s, color 0.2s; }
+    .container { max-width: 640px; margin: 0 auto; }
     h1   { font-size: 1.4rem; color: var(--text-h1); }
     h2   { font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--text-h2); }
     .card { background: var(--surface); border-radius: 8px; padding: 1.25rem;
@@ -562,13 +563,14 @@ _HTML = r"""<!DOCTYPE html>
     .btn-sm { padding: 0.28rem 0.6rem; font-size: 0.78rem; }
     #sf-error { font-size: 0.8rem; color: #e53935; min-height: 1.1em; }
     /* Tabs */
-    .tabs { display: flex; gap: 0.25rem; margin-bottom: 1.25rem; }
+    .tabs { display: flex; gap: 0.25rem; margin-bottom: 1.25rem; justify-content: center; }
     .tab  { background: var(--tab-bg); color: var(--tab-fg); border-radius: 6px 6px 0 0;
             padding: 0.45rem 1.1rem; font-size: 0.85rem; font-weight: 500; }
     .tab.active { background: #03a9f4; color: #fff; }
     /* Settings form */
     .field-group { display: flex; flex-direction: column; gap: 0.6rem; }
     .field-group label { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
+    .field-group input[type="text"],
     .field-group input[type="url"],
     .field-group input[type="email"],
     .field-group input[type="password"],
@@ -583,6 +585,7 @@ _HTML = r"""<!DOCTYPE html>
   </style>
 </head>
 <body>
+<div class="container">
   <div class="page-header">
     <div class="page-title">
       <img src="__ICON_URI__" class="app-icon" alt="">
@@ -650,6 +653,7 @@ _HTML = r"""<!DOCTYPE html>
     </div>
   </div>
 
+</div><!-- .container -->
   <script>
     // Theme
     function applyTheme(theme) {
@@ -982,7 +986,7 @@ def api_files():
 
 @app.route("/api/servers")
 def api_servers_list():
-    servers = load_servers()
+    servers = sorted(load_servers(), key=lambda s: s.get("name", "").lower())
     return jsonify([{
         "id": s["id"],
         "name": s["name"],
