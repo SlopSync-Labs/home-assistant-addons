@@ -3,6 +3,27 @@
 
 All notable changes to the NPM Export Import add-on will be documented here.
 
+## [0.1.14] - 2026-03-15
+
+### Added
+
+- Dark mode support — defaults to system preference (`prefers-color-scheme`);
+  selection saved to `localStorage` and restored on next load
+- Theme toggle button (☀️ / 🌙) in the page header
+- CSS custom properties for all colors; all UI elements respect the active theme
+
+---
+
+## [0.1.13] - 2026-03-15
+
+### Added
+
+- Delete button next to Import Selected — removes the selected export file
+  (double-click to confirm, same pattern as Import)
+- `DELETE /api/files/<filename>` Flask endpoint
+
+---
+
 ## [0.1.12] - 2026-03-15
 
 ### Changed

@@ -449,15 +449,66 @@ _HTML = r"""<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NPM Export Import</title>
   <style>
+    :root {
+      --bg:               #f0f2f5;
+      --surface:          #fff;
+      --surface-alt:      #fafafa;
+      --border:           #eee;
+      --text:             #333;
+      --text-h1:          #111;
+      --text-h2:          #222;
+      --text-muted:       #666;
+      --text-dim:         #aaa;
+      --code-bg:          #f5f5f5;
+      --shadow:           0 1px 4px rgba(0,0,0,.08);
+      --row-hover-bg:     #f0f7ff;
+      --row-hover-border: #b3d9f7;
+      --row-sel-bg:       #e3f2fd;
+      --tab-bg:           #e0e0e0;
+      --tab-fg:           #555;
+      --input-bg:         #fff;
+      --input-border:     #ddd;
+      --input-color:      #333;
+      --overlay-bg:       rgba(0,0,0,0.45);
+      --btn-danger-bg:    #fbe9e7;
+      --btn-danger-fg:    #c62828;
+      --btn-danger-hov:   #ffccbc;
+    }
+    [data-theme="dark"] {
+      --bg:               #0f1117;
+      --surface:          #1c1c28;
+      --surface-alt:      #252535;
+      --border:           #2e2e40;
+      --text:             #dde1e7;
+      --text-h1:          #f0f0f0;
+      --text-h2:          #d0d4df;
+      --text-muted:       #8a8fa8;
+      --text-dim:         #555770;
+      --code-bg:          #252535;
+      --shadow:           0 1px 6px rgba(0,0,0,.45);
+      --row-hover-bg:     #1e2a3a;
+      --row-hover-border: #2a5070;
+      --row-sel-bg:       #0d3350;
+      --tab-bg:           #252535;
+      --tab-fg:           #8a8fa8;
+      --input-bg:         #252535;
+      --input-border:     #3a3a50;
+      --input-color:      #dde1e7;
+      --overlay-bg:       rgba(0,0,0,0.65);
+      --btn-danger-bg:    #3a1515;
+      --btn-danger-fg:    #ef9a9a;
+      --btn-danger-hov:   #4a2020;
+    }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-           background: #f0f2f5; color: #333; padding: 1.5rem; }
-    h1   { font-size: 1.4rem; margin-bottom: 1.25rem; color: #111; }
-    h2   { font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; color: #222; }
-    .card { background: #fff; border-radius: 8px; padding: 1.25rem;
-            margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
-    .meta { font-size: 0.85rem; color: #666; margin-bottom: 0.9rem; }
-    .meta code { background: #f5f5f5; padding: 0.1rem 0.35rem;
+           background: var(--bg); color: var(--text); padding: 1.5rem;
+           transition: background 0.2s, color 0.2s; }
+    h1   { font-size: 1.4rem; color: var(--text-h1); }
+    h2   { font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--text-h2); }
+    .card { background: var(--surface); border-radius: 8px; padding: 1.25rem;
+            margin-bottom: 1rem; box-shadow: var(--shadow); }
+    .meta { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.9rem; }
+    .meta code { background: var(--code-bg); padding: 0.1rem 0.35rem;
                  border-radius: 3px; font-size: 0.8rem; }
     button { display: inline-flex; align-items: center; gap: 0.4rem;
              padding: 0.45rem 1rem; border: none; border-radius: 5px;
@@ -467,62 +518,76 @@ _HTML = r"""<!DOCTYPE html>
     .btn-primary:hover:not(:disabled) { background: #0288d1; }
     .btn-secondary { background: #e8f5e9; color: #2e7d32; }
     .btn-secondary:hover:not(:disabled) { background: #c8e6c9; }
+    .btn-danger    { background: var(--btn-danger-bg); color: var(--btn-danger-fg); }
+    .btn-danger:hover:not(:disabled)    { background: var(--btn-danger-hov); }
+    .btn-theme     { background: var(--tab-bg); color: var(--tab-fg);
+                     padding: 0.3rem 0.65rem; font-size: 1rem; line-height: 1; }
+    .btn-theme:hover { background: var(--row-hover-bg); }
     button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .page-header { display: flex; align-items: center; justify-content: space-between;
+                   margin-bottom: 1.25rem; }
     #op-status-bar { min-height: 1.6rem; display: flex; align-items: center;
-                     font-size: 0.82rem; color: #888; margin-bottom: 0.5rem; padding: 0 0.1rem; }
+                     font-size: 0.82rem; color: var(--text-muted);
+                     margin-bottom: 0.5rem; padding: 0 0.1rem; }
     .file-list { display: flex; flex-direction: column; gap: 0.5rem;
                  max-height: 248px; overflow-y: auto; }
     .file-row  { display: flex; align-items: center; gap: 0.75rem;
-                 padding: 0.5rem 0.6rem; background: #fafafa;
-                 border-radius: 5px; border: 1px solid #eee; cursor: pointer; }
-    .file-row:hover   { background: #f0f7ff; border-color: #b3d9f7; }
-    .file-row.selected { background: #e3f2fd; border-color: #03a9f4; }
+                 padding: 0.5rem 0.6rem; background: var(--surface-alt);
+                 border-radius: 5px; border: 1px solid var(--border); cursor: pointer; }
+    .file-row:hover   { background: var(--row-hover-bg); border-color: var(--row-hover-border); }
+    .file-row.selected { background: var(--row-sel-bg); border-color: #03a9f4; }
     .file-name { font-family: monospace; font-size: 0.8rem; flex: 1; }
-    .file-size { font-size: 0.75rem; color: #aaa; white-space: nowrap; }
-    .import-actions { margin-top: 0.75rem; }
-    .empty     { font-size: 0.85rem; color: #aaa; font-style: italic; }
+    .file-size { font-size: 0.75rem; color: var(--text-dim); white-space: nowrap; }
+    .import-actions { display: flex; gap: 0.5rem; }
+    .empty     { font-size: 0.85rem; color: var(--text-dim); font-style: italic; }
     #log { background: #1e1e1e; color: #ccc; font-family: monospace;
            font-size: 0.77rem; line-height: 1.5; padding: 0.75rem;
            border-radius: 5px; height: 220px; overflow-y: auto;
            white-space: pre-wrap; word-break: break-all; }
     /* OTP modal */
     #otp-overlay { display: none; position: fixed; inset: 0;
-                   background: rgba(0,0,0,0.45); z-index: 100;
+                   background: var(--overlay-bg); z-index: 100;
                    align-items: center; justify-content: center; }
     #otp-overlay.active { display: flex; }
-    #otp-modal { background: #fff; border-radius: 10px; padding: 1.75rem;
-                 width: 320px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+    #otp-modal { background: var(--surface); border-radius: 10px; padding: 1.75rem;
+                 width: 320px; box-shadow: 0 8px 32px rgba(0,0,0,0.25); }
     #otp-modal h2 { font-size: 1rem; margin-bottom: 0.5rem; }
-    #otp-modal p  { font-size: 0.85rem; color: #666; margin-bottom: 1rem; }
+    #otp-modal p  { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; }
     #otp-input { width: 100%; padding: 0.6rem 0.75rem; font-size: 1.4rem;
-                 letter-spacing: 0.25rem; text-align: center; border: 1px solid #ddd;
-                 border-radius: 5px; margin-bottom: 0.75rem; font-family: monospace; }
+                 letter-spacing: 0.25rem; text-align: center;
+                 border: 1px solid var(--input-border); border-radius: 5px;
+                 margin-bottom: 0.75rem; font-family: monospace;
+                 background: var(--input-bg); color: var(--input-color); }
     #otp-input:focus { outline: none; border-color: #03a9f4; }
     #otp-error { font-size: 0.8rem; color: #e53935; min-height: 1.2em;
                  margin-bottom: 0.5rem; }
     #otp-modal .actions { display: flex; justify-content: flex-end; }
     /* Tabs */
     .tabs { display: flex; gap: 0.25rem; margin-bottom: 1.25rem; }
-    .tab  { background: #e0e0e0; color: #555; border-radius: 6px 6px 0 0;
+    .tab  { background: var(--tab-bg); color: var(--tab-fg); border-radius: 6px 6px 0 0;
             padding: 0.45rem 1.1rem; font-size: 0.85rem; font-weight: 500; }
     .tab.active { background: #03a9f4; color: #fff; }
     /* Settings form */
     .field-group { display: flex; flex-direction: column; gap: 0.6rem; }
-    .field-group label { font-size: 0.8rem; color: #666; font-weight: 500; }
+    .field-group label { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
     .field-group input[type="url"],
     .field-group input[type="email"],
     .field-group input[type="password"],
     .field-group input[type="number"] {
-      padding: 0.45rem 0.6rem; border: 1px solid #ddd; border-radius: 5px;
-      font-size: 0.85rem; width: 100%; }
+      padding: 0.45rem 0.6rem; border: 1px solid var(--input-border); border-radius: 5px;
+      font-size: 0.85rem; width: 100%;
+      background: var(--input-bg); color: var(--input-color); }
     .field-group input:focus { outline: none; border-color: #03a9f4; }
     .checkbox-label { display: flex; align-items: center; gap: 0.5rem;
-                      font-size: 0.85rem; color: #333; font-weight: normal; }
-    #save-status { font-size: 0.82rem; color: #888; margin-left: 0.6rem; }
+                      font-size: 0.85rem; color: var(--text); font-weight: normal; }
+    #save-status { font-size: 0.82rem; color: var(--text-muted); margin-left: 0.6rem; }
   </style>
 </head>
 <body>
-  <h1>NPM Export Import</h1>
+  <div class="page-header">
+    <h1>NPM Export Import</h1>
+    <button class="btn-theme" id="btn-theme" onclick="toggleTheme()" title="Toggle dark mode"></button>
+  </div>
 
   <div class="tabs">
     <button class="tab active" onclick="showTab('operations', this)">Operations</button>
@@ -542,6 +607,7 @@ _HTML = r"""<!DOCTYPE html>
       <h2>Import</h2>
       <div class="import-actions">
         <button class="btn-primary" id="btn-import" onclick="triggerImport()" disabled>Import Selected</button>
+        <button class="btn-danger" id="btn-delete" onclick="triggerDelete()" disabled>Delete</button>
       </div>
       <p class="meta" style="margin-top:0.75rem">Select a backup file to restore into NPM.</p>
       <div class="file-list" id="file-list"><span class="empty">Loading…</span></div>
@@ -601,6 +667,22 @@ _HTML = r"""<!DOCTYPE html>
   </div>
 
   <script>
+    // Theme
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      document.getElementById('btn-theme').textContent = theme === 'dark' ? '\u2600\ufe0f' : '\ud83c\udf19';
+    }
+    function toggleTheme() {
+      const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('npm-ei-theme', next);
+      applyTheme(next);
+    }
+    (function() {
+      const saved = localStorage.getItem('npm-ei-theme');
+      const sys = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      applyTheme(saved || sys);
+    })();
+
     // HA ingress strips the prefix before forwarding to Flask,
     // but the browser URL still contains it — use it as the fetch base.
     const base = window.location.pathname.replace(/\/+$/, '');
@@ -609,6 +691,8 @@ _HTML = r"""<!DOCTYPE html>
     let _selectedFile = null;
     let _importArmed = false;
     let _importArmTimer = null;
+    let _deleteArmed = false;
+    let _deleteArmTimer = null;
 
     function showTab(name, btn) {
       document.getElementById('tab-operations').style.display =
@@ -666,6 +750,7 @@ _HTML = r"""<!DOCTYPE html>
         const busy = d.running || !!d.pending_2fa;
         document.getElementById('btn-export').disabled = busy;
         document.getElementById('btn-import').disabled = busy || !_selectedFile;
+        document.getElementById('btn-delete').disabled = busy || !_selectedFile;
         document.getElementById('op-status-bar').textContent =
           d.running ? '\u23f3 Operation in progress\u2026' : '';
 
@@ -688,7 +773,10 @@ _HTML = r"""<!DOCTYPE html>
       document.querySelectorAll('.file-row').forEach(r => r.classList.remove('selected'));
       row.classList.add('selected');
       const busy = document.getElementById('btn-export').disabled;
-      if (!busy) document.getElementById('btn-import').disabled = false;
+      if (!busy) {
+        document.getElementById('btn-import').disabled = false;
+        document.getElementById('btn-delete').disabled = false;
+      }
     }
 
     async function loadFiles() {
@@ -699,6 +787,7 @@ _HTML = r"""<!DOCTYPE html>
           el.innerHTML = '<span class="empty">No export files found.</span>';
           _selectedFile = null;
           document.getElementById('btn-import').disabled = true;
+          document.getElementById('btn-delete').disabled = true;
           return;
         }
         el.innerHTML = files.map(f =>
@@ -710,6 +799,7 @@ _HTML = r"""<!DOCTYPE html>
         ).join('');
         const busy = document.getElementById('btn-export').disabled;
         document.getElementById('btn-import').disabled = busy || !_selectedFile;
+        document.getElementById('btn-delete').disabled = busy || !_selectedFile;
       } catch (_) {}
     }
 
@@ -759,6 +849,36 @@ _HTML = r"""<!DOCTYPE html>
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename: _selectedFile })
       });
+    }
+
+    function triggerDelete() {
+      if (!_selectedFile) return;
+      const btn = document.getElementById('btn-delete');
+      if (!_deleteArmed) {
+        _deleteArmed = true;
+        btn.textContent = 'Confirm?';
+        btn.style.background = '#e53935';
+        btn.style.color = '#fff';
+        clearTimeout(_deleteArmTimer);
+        _deleteArmTimer = setTimeout(() => {
+          _deleteArmed = false;
+          btn.textContent = 'Delete';
+          btn.style.background = '';
+          btn.style.color = '';
+        }, 3000);
+        return;
+      }
+      clearTimeout(_deleteArmTimer);
+      _deleteArmed = false;
+      btn.textContent = 'Delete';
+      btn.style.background = '';
+      btn.style.color = '';
+      const filename = _selectedFile;
+      _selectedFile = null;
+      document.getElementById('btn-import').disabled = true;
+      document.getElementById('btn-delete').disabled = true;
+      fetch(base + '/api/files/' + encodeURIComponent(filename), { method: 'DELETE' })
+        .then(() => loadFiles());
     }
 
     async function submitOtp() {
@@ -822,6 +942,18 @@ def api_files():
             size_kb = round(os.path.getsize(path) / 1024, 1)
             files.append({"name": name, "size_kb": size_kb})
     return jsonify(files)
+
+
+@app.route("/api/files/<path:filename>", methods=["DELETE"])
+def api_file_delete(filename):
+    if not filename.endswith(".json") or "/" in filename or ".." in filename:
+        return jsonify({"error": "invalid filename"}), 400
+    path = os.path.join(EXPORT_DIR, filename)
+    if not os.path.isfile(path):
+        return jsonify({"error": "not found"}), 404
+    os.remove(path)
+    _log(f"[files] Deleted {filename}")
+    return jsonify({"status": "deleted"})
 
 
 @app.route("/api/logs")
