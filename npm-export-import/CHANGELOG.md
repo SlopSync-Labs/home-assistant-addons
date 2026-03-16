@@ -3,6 +3,29 @@
 
 All notable changes to the NPM Export Import add-on will be documented here.
 
+## [0.1.18] - 2026-03-15
+
+### Added
+
+- Multi-server support — configure any number of NPM instances in the Settings tab,
+  each with a name, URL, username, and password
+- Separate server dropdowns on Export and Import cards — enables exporting from
+  one NPM instance and importing directly into another (migration workflow)
+- Server preferences persisted in `localStorage` and restored on next load
+- `GET /api/servers`, `POST /api/servers`, `PUT /api/servers/<id>`,
+  `DELETE /api/servers/<id>` CRUD endpoints; servers stored in `/data/servers.json`
+- Legacy single-server config (`npm_url`/`npm_username`/`npm_password` from
+  `options.json`) is automatically migrated to `servers.json` on first boot
+
+### Removed
+
+- `npm_url`, `npm_username`, `npm_password` top-level config options (now managed
+  via the Settings tab servers manager)
+- `hassio_api` / `hassio_role` from `config.json` — no longer needed, improves
+  security rating
+
+---
+
 ## [0.1.17] - 2026-03-15
 
 ### Removed

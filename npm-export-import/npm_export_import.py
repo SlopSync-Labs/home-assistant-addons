@@ -3,6 +3,7 @@ import collections
 import json
 import os
 import threading
+import uuid
 from datetime import datetime, timezone
 
 import requests
@@ -10,6 +11,7 @@ from flask import Flask, jsonify
 from flask import request as flask_request
 
 OPTIONS_PATH = "/data/options.json"
+SERVERS_PATH = "/data/servers.json"
 EXPORT_DIR = "/share/npm-export-import"
 LE_CERT_BASE = "/ssl/nginxproxymanager/live"
 INGRESS_PORT = 8099
@@ -31,7 +33,7 @@ _MASKED = "\u2022\u2022\u2022\u2022\u2022"  # sentinel: password field left unch
 _log_lines = collections.deque(maxlen=200)
 _op_lock = threading.Lock()
 _op_running = False
-_session = {"token": None, "expires": None}  # cached JWT session
+_sessions: dict = {}  # server_id -> {"token": ..., "expires": ...}
 
 
 def _log(msg):
@@ -43,27 +45,30 @@ def _log(msg):
 # Auth helpers
 # ---------------------------------------------------------------------------
 
-def _get_session_token():
-    if _session["token"] and _session["expires"]:
-        if datetime.now(timezone.utc) < _session["expires"]:
-            return _session["token"]
+def _get_session_token(server_id):
+    s = _sessions.get(server_id, {})
+    if s.get("token") and s.get("expires"):
+        if datetime.now(timezone.utc) < s["expires"]:
+            return s["token"]
     return None
 
 
-def _set_session_token(token, expires_str):
-    _session["token"] = token
-    _session["expires"] = datetime.fromisoformat(expires_str.replace("Z", "+00:00"))
+def _set_session_token(server_id, token, expires_str):
+    _sessions[server_id] = {
+        "token": token,
+        "expires": datetime.fromisoformat(expires_str.replace("Z", "+00:00")),
+    }
 
 
-def authenticate(cfg):
-    cached = _get_session_token()
+def authenticate(server):
+    cached = _get_session_token(server["id"])
     if cached:
         return {"Authorization": f"Bearer {cached}"}
 
-    url = f"{cfg['npm_url'].rstrip('/')}/api/tokens"
+    url = f"{server['npm_url'].rstrip('/')}/api/tokens"
     resp = requests.post(
         url,
-        json={"identity": cfg["npm_username"], "secret": cfg["npm_password"], "scope": "user"},
+        json={"identity": server["npm_username"], "secret": server["npm_password"], "scope": "user"},
         timeout=15,
     )
     resp.raise_for_status()
@@ -72,7 +77,7 @@ def authenticate(cfg):
         raise RuntimeError(
             "NPM account has 2FA enabled — disable 2FA on your NPM account to use this add-on"
         )
-    _set_session_token(data["token"], data["expires"])
+    _set_session_token(server["id"], data["token"], data["expires"])
     return {"Authorization": f"Bearer {data['token']}"}
 
 
@@ -85,21 +90,48 @@ def load_options():
         return json.load(f)
 
 
-def save_options(updates):
-    token = os.environ.get("SUPERVISOR_TOKEN", "")
-    resp = requests.post(
-        "http://supervisor/addons/self/options",
-        headers={"Authorization": f"Bearer {token}",
-                 "Content-Type": "application/json"},
-        json={"options": updates},
-        timeout=10,
-    )
-    resp.raise_for_status()
-    # The Supervisor API updates HA's config store but does not rewrite
-    # /data/options.json until the add-on restarts. Write it ourselves so
-    # load_options() returns fresh values immediately.
-    with open(OPTIONS_PATH, "w") as f:
-        json.dump(updates, f)
+def load_servers():
+    try:
+        with open(SERVERS_PATH) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def save_servers(servers):
+    with open(SERVERS_PATH, "w") as f:
+        json.dump(servers, f, indent=2)
+
+
+def _get_server(server_id):
+    for s in load_servers():
+        if s["id"] == server_id:
+            return s
+    return None
+
+
+def _migrate_legacy_config():
+    """If servers.json does not exist but options.json has npm_url, create an initial server entry."""
+    if os.path.isfile(SERVERS_PATH):
+        return
+    try:
+        cfg = load_options()
+        url = cfg.get("npm_url", "").strip()
+        username = cfg.get("npm_username", "").strip()
+        password = cfg.get("npm_password", "")
+        if url and username:
+            servers = [{
+                "id": uuid.uuid4().hex[:8],
+                "name": "Default",
+                "npm_url": url,
+                "npm_username": username,
+                "npm_password": password,
+            }]
+            save_servers(servers)
+            _log("[server] Migrated legacy config to servers list")
+    except Exception:
+        pass
+
 
 
 def _read_cert_files(cert_id):
@@ -513,6 +545,22 @@ _HTML = r"""<!DOCTYPE html>
            font-size: 0.77rem; line-height: 1.5; padding: 0.75rem;
            border-radius: 5px; height: 220px; overflow-y: auto;
            white-space: pre-wrap; word-break: break-all; }
+    .server-select { padding: 0.42rem 0.6rem; border: 1px solid var(--input-border);
+                     border-radius: 5px; font-size: 0.85rem; width: 100%;
+                     background: var(--input-bg); color: var(--input-color);
+                     margin-bottom: 0.75rem; }
+    .server-row { display: flex; align-items: center; justify-content: space-between;
+                  padding: 0.5rem 0.65rem; background: var(--surface-alt);
+                  border-radius: 5px; border: 1px solid var(--border);
+                  margin-bottom: 0.5rem; }
+    .server-info { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0;
+                   overflow: hidden; }
+    .server-name { font-size: 0.85rem; font-weight: 600; color: var(--text); }
+    .server-url  { font-size: 0.75rem; color: var(--text-muted); font-family: monospace;
+                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .server-actions { display: flex; gap: 0.35rem; flex-shrink: 0; margin-left: 0.5rem; }
+    .btn-sm { padding: 0.28rem 0.6rem; font-size: 0.78rem; }
+    #sf-error { font-size: 0.8rem; color: #e53935; min-height: 1.1em; }
     /* Tabs */
     .tabs { display: flex; gap: 0.25rem; margin-bottom: 1.25rem; }
     .tab  { background: var(--tab-bg); color: var(--tab-fg); border-radius: 6px 6px 0 0;
@@ -552,13 +600,16 @@ _HTML = r"""<!DOCTYPE html>
     <div id="op-status-bar"></div>
 
     <div class="card">
-      <div class="meta">Connected to: <code id="npm-url">…</code></div>
       <h2>Export</h2>
+      <label style="font-size:0.8rem;color:var(--text-muted);font-weight:500;display:block;margin-bottom:0.4rem">Source Server</label>
+      <select id="sel-export-server" class="server-select" onchange="saveServerPref('export',this.value)"></select>
       <button class="btn-primary" id="btn-export" onclick="triggerExport()">Export Now</button>
     </div>
 
     <div class="card">
       <h2>Import</h2>
+      <label style="font-size:0.8rem;color:var(--text-muted);font-weight:500;display:block;margin-bottom:0.4rem">Target Server</label>
+      <select id="sel-import-server" class="server-select" onchange="saveServerPref('import',this.value)"></select>
       <div class="import-actions">
         <button class="btn-primary" id="btn-import" onclick="triggerImport()" disabled>Import Selected</button>
         <button class="btn-danger" id="btn-delete" onclick="triggerDelete()" disabled>Delete</button>
@@ -575,18 +626,28 @@ _HTML = r"""<!DOCTYPE html>
 
   <div id="tab-settings" style="display:none">
     <div class="card">
-      <h2>NPM Connection</h2>
+      <h2>NPM Servers</h2>
+      <div id="server-list"><span class="empty">No servers configured.</span></div>
+      <button class="btn-primary" style="margin-top:0.75rem" onclick="showServerForm(null)">+ Add Server</button>
+    </div>
+    <div class="card" id="server-form-card" style="display:none">
+      <h2 id="server-form-title">Add Server</h2>
       <div class="field-group">
+        <label>Name</label>
+        <input type="text" id="sf-name" placeholder="e.g. Production">
         <label>NPM URL</label>
-        <input type="url" id="cfg-npm-url">
+        <input type="url" id="sf-url" placeholder="http://homeassistant.local:81">
         <label>Username</label>
-        <input type="email" id="cfg-npm-username">
+        <input type="email" id="sf-username" placeholder="admin@example.com">
         <label>Password</label>
-        <input type="password" id="cfg-npm-password" placeholder="leave blank to keep current">
+        <input type="password" id="sf-password" placeholder="NPM password">
+      </div>
+      <div id="sf-error"></div>
+      <div style="display:flex;gap:0.5rem;margin-top:0.75rem">
+        <button class="btn-primary" onclick="saveServer()">Save Server</button>
+        <button class="btn-secondary" onclick="cancelServerForm()">Cancel</button>
       </div>
     </div>
-    <button class="btn-primary" id="btn-save" onclick="saveConfig()">Save</button>
-    <span id="save-status"></span>
   </div>
 
   <script>
@@ -606,61 +667,154 @@ _HTML = r"""<!DOCTYPE html>
       applyTheme(saved || sys);
     })();
 
-    // HA ingress strips the prefix before forwarding to Flask,
-    // but the browser URL still contains it — use it as the fetch base.
     const base = window.location.pathname.replace(/\/+$/, '');
     let _selectedFile = null;
     let _importArmed = false;
     let _importArmTimer = null;
     let _deleteArmed = false;
     let _deleteArmTimer = null;
+    let _servers = [];
+    let _editingServerId = null;
+    let _deleteServerArmed = null;
+    let _deleteServerBtn = null;
+    let _deleteServerTimer = null;
+    let _op_running_client = false;
 
     function showTab(name, btn) {
-      document.getElementById('tab-operations').style.display =
-        name === 'operations' ? '' : 'none';
-      document.getElementById('tab-settings').style.display =
-        name === 'settings' ? '' : 'none';
+      document.getElementById('tab-operations').style.display = name === 'operations' ? '' : 'none';
+      document.getElementById('tab-settings').style.display   = name === 'settings'   ? '' : 'none';
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       btn.classList.add('active');
-      if (name === 'settings') loadConfig();
+      if (name === 'settings') loadServers();
     }
 
-    async function loadConfig() {
+    // --- Servers ---
+    async function loadServers() {
       try {
-        const d = await (await fetch(base + '/api/config')).json();
-        document.getElementById('cfg-npm-url').value      = d.npm_url;
-        document.getElementById('cfg-npm-username').value = d.npm_username;
-        document.getElementById('cfg-npm-password').value = '';
-        document.getElementById('cfg-npm-password').placeholder =
-          d.npm_password ? 'leave blank to keep current' : 'not set';
+        const r = await fetch(base + '/api/servers');
+        _servers = await r.json();
+        renderServerList();
+        renderServerDropdowns();
       } catch (_) {}
     }
 
-    async function saveConfig() {
-      document.getElementById('btn-save').disabled = true;
-      document.getElementById('save-status').textContent = '';
-      const pwdVal = document.getElementById('cfg-npm-password').value;
-      const body = {
-        npm_url:      document.getElementById('cfg-npm-url').value,
-        npm_username: document.getElementById('cfg-npm-username').value,
-        npm_password: pwdVal || '\u2022\u2022\u2022\u2022\u2022',
-      };
-      const r = await fetch(base + '/api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      document.getElementById('btn-save').disabled = false;
-      document.getElementById('save-status').textContent = r.ok ? '\u2713 Saved' : '\u2717 Save failed';
-      if (r.ok) setTimeout(() => document.getElementById('save-status').textContent = '', 3000);
+    function renderServerList() {
+      const el = document.getElementById('server-list');
+      if (!el) return;
+      if (!_servers.length) {
+        el.innerHTML = '<span class="empty">No servers configured.</span>';
+        return;
+      }
+      el.innerHTML = _servers.map(s =>
+        `<div class="server-row">
+          <div class="server-info">
+            <span class="server-name">${s.name}</span>
+            <span class="server-url">${s.npm_url}</span>
+          </div>
+          <div class="server-actions">
+            <button class="btn-secondary btn-sm" onclick="showServerForm('${s.id}')">Edit</button>
+            <button class="btn-danger btn-sm" onclick="deleteServer('${s.id}', this)">Delete</button>
+          </div>
+        </div>`
+      ).join('');
     }
 
+    function renderServerDropdowns() {
+      const savedExport = localStorage.getItem('npm-ei-export-server');
+      const savedImport = localStorage.getItem('npm-ei-import-server');
+      ['sel-export-server', 'sel-import-server'].forEach((id, i) => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const saved = i === 0 ? savedExport : savedImport;
+        sel.innerHTML = _servers.length
+          ? _servers.map(s => `<option value="${s.id}"${s.id === saved ? ' selected' : ''}>${s.name}</option>`).join('')
+          : '<option value="">\u2014 No servers configured \u2014</option>';
+      });
+      document.getElementById('btn-export').disabled = _op_running_client || !_servers.length;
+    }
+
+    function saveServerPref(type, value) {
+      localStorage.setItem(`npm-ei-${type}-server`, value);
+    }
+
+    function showServerForm(id) {
+      _editingServerId = id;
+      document.getElementById('server-form-title').textContent = id ? 'Edit Server' : 'Add Server';
+      document.getElementById('sf-error').textContent = '';
+      if (id) {
+        const s = _servers.find(x => x.id === id);
+        document.getElementById('sf-name').value     = s.name;
+        document.getElementById('sf-url').value      = s.npm_url;
+        document.getElementById('sf-username').value = s.npm_username;
+        document.getElementById('sf-password').value = '';
+        document.getElementById('sf-password').placeholder = s.has_password ? 'leave blank to keep current' : 'not set';
+      } else {
+        ['sf-name','sf-url','sf-username','sf-password'].forEach(fid => document.getElementById(fid).value = '');
+        document.getElementById('sf-password').placeholder = 'NPM password';
+      }
+      document.getElementById('server-form-card').style.display = '';
+      document.getElementById('sf-name').focus();
+    }
+
+    function cancelServerForm() {
+      document.getElementById('server-form-card').style.display = 'none';
+      _editingServerId = null;
+    }
+
+    async function saveServer() {
+      const name     = document.getElementById('sf-name').value.trim();
+      const npm_url  = document.getElementById('sf-url').value.trim();
+      const username = document.getElementById('sf-username').value.trim();
+      const pwd      = document.getElementById('sf-password').value;
+      const errEl    = document.getElementById('sf-error');
+      if (!name || !npm_url || !username) {
+        errEl.textContent = 'Name, URL, and Username are required.';
+        return;
+      }
+      if (!_editingServerId && !pwd) {
+        errEl.textContent = 'Password is required for new servers.';
+        return;
+      }
+      errEl.textContent = '';
+      const body = {
+        name, npm_url, npm_username: username,
+        npm_password: pwd || '\u2022\u2022\u2022\u2022\u2022',
+      };
+      const method = _editingServerId ? 'PUT' : 'POST';
+      const url    = _editingServerId ? `${base}/api/servers/${_editingServerId}` : `${base}/api/servers`;
+      const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!r.ok) { errEl.textContent = 'Save failed.'; return; }
+      cancelServerForm();
+      await loadServers();
+    }
+
+    function deleteServer(id, btn) {
+      if (_deleteServerArmed !== id) {
+        if (_deleteServerBtn) { _deleteServerBtn.textContent = 'Delete'; _deleteServerBtn.style.cssText = ''; }
+        clearTimeout(_deleteServerTimer);
+        _deleteServerArmed = id;
+        _deleteServerBtn = btn;
+        btn.textContent = 'Confirm?';
+        btn.style.background = '#e53935';
+        btn.style.color = '#fff';
+        _deleteServerTimer = setTimeout(() => {
+          if (_deleteServerBtn) { _deleteServerBtn.textContent = 'Delete'; _deleteServerBtn.style.cssText = ''; }
+          _deleteServerArmed = null; _deleteServerBtn = null;
+        }, 3000);
+        return;
+      }
+      clearTimeout(_deleteServerTimer);
+      _deleteServerArmed = null; _deleteServerBtn = null;
+      fetch(`${base}/api/servers/${id}`, { method: 'DELETE' }).then(() => loadServers());
+    }
+
+    // --- Status / Operations ---
     async function loadStatus() {
       try {
         const d = await (await fetch(base + '/api/status')).json();
-        document.getElementById('npm-url').textContent = d.npm_url;
+        _op_running_client = d.running;
         const busy = d.running;
-        document.getElementById('btn-export').disabled = busy;
+        document.getElementById('btn-export').disabled = busy || !_servers.length;
         document.getElementById('btn-import').disabled = busy || !_selectedFile;
         document.getElementById('btn-delete').disabled = busy || !_selectedFile;
         document.getElementById('op-status-bar').textContent =
@@ -672,8 +826,7 @@ _HTML = r"""<!DOCTYPE html>
       _selectedFile = filename;
       document.querySelectorAll('.file-row').forEach(r => r.classList.remove('selected'));
       row.classList.add('selected');
-      const busy = document.getElementById('btn-export').disabled;
-      if (!busy) {
+      if (!_op_running_client) {
         document.getElementById('btn-import').disabled = false;
         document.getElementById('btn-delete').disabled = false;
       }
@@ -697,9 +850,8 @@ _HTML = r"""<!DOCTYPE html>
             <span class="file-size">${f.size_kb} KB</span>
           </div>`
         ).join('');
-        const busy = document.getElementById('btn-export').disabled;
-        document.getElementById('btn-import').disabled = busy || !_selectedFile;
-        document.getElementById('btn-delete').disabled = busy || !_selectedFile;
+        document.getElementById('btn-import').disabled = _op_running_client || !_selectedFile;
+        document.getElementById('btn-delete').disabled = _op_running_client || !_selectedFile;
       } catch (_) {}
     }
 
@@ -714,10 +866,17 @@ _HTML = r"""<!DOCTYPE html>
     }
 
     async function triggerExport() {
+      const serverId = document.getElementById('sel-export-server').value;
+      if (!serverId) return;
+      saveServerPref('export', serverId);
       document.getElementById('btn-export').disabled = true;
       document.getElementById('btn-import').disabled = true;
       document.getElementById('op-status-bar').textContent = '\u23f3 Starting export\u2026';
-      await fetch(base + '/api/export', { method: 'POST' });
+      await fetch(base + '/api/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ server_id: serverId })
+      });
     }
 
     function triggerImport() {
@@ -739,13 +898,16 @@ _HTML = r"""<!DOCTYPE html>
       _importArmed = false;
       btn.textContent = 'Import Selected';
       btn.style.background = '';
+      const serverId = document.getElementById('sel-import-server').value;
+      if (!serverId) return;
+      saveServerPref('import', serverId);
       btn.disabled = true;
       document.getElementById('btn-export').disabled = true;
       document.getElementById('op-status-bar').textContent = '\u23f3 Starting import\u2026';
       fetch(base + '/api/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: _selectedFile })
+        body: JSON.stringify({ server_id: serverId, filename: _selectedFile })
       });
     }
 
@@ -779,7 +941,7 @@ _HTML = r"""<!DOCTYPE html>
         .then(() => loadFiles());
     }
 
-    loadStatus(); loadFiles(); loadLogs();
+    loadServers(); loadStatus(); loadFiles(); loadLogs();
     setInterval(() => Promise.all([loadStatus(), loadLogs()]), 2000);
     setInterval(loadFiles, 8000);
   </script>
@@ -803,11 +965,7 @@ def index():
 
 @app.route("/api/status")
 def api_status():
-    cfg = load_options()
-    return jsonify({
-        "npm_url": cfg.get("npm_url", ""),
-        "running": _op_running,
-    })
+    return jsonify({"running": _op_running})
 
 
 @app.route("/api/files")
@@ -820,6 +978,64 @@ def api_files():
             size_kb = round(os.path.getsize(path) / 1024, 1)
             files.append({"name": name, "size_kb": size_kb})
     return jsonify(files)
+
+
+@app.route("/api/servers")
+def api_servers_list():
+    servers = load_servers()
+    return jsonify([{
+        "id": s["id"],
+        "name": s["name"],
+        "npm_url": s["npm_url"],
+        "npm_username": s["npm_username"],
+        "has_password": bool(s.get("npm_password")),
+    } for s in servers])
+
+
+@app.route("/api/servers", methods=["POST"])
+def api_servers_create():
+    body = flask_request.get_json() or {}
+    name = body.get("name", "").strip()
+    npm_url = body.get("npm_url", "").strip()
+    npm_username = body.get("npm_username", "").strip()
+    npm_password = body.get("npm_password", "")
+    if not name or not npm_url or not npm_username or not npm_password:
+        return jsonify({"error": "name, npm_url, npm_username, npm_password required"}), 400
+    server = {
+        "id": uuid.uuid4().hex[:8],
+        "name": name,
+        "npm_url": npm_url,
+        "npm_username": npm_username,
+        "npm_password": npm_password,
+    }
+    servers = load_servers()
+    servers.append(server)
+    save_servers(servers)
+    return jsonify({"id": server["id"]}), 201
+
+
+@app.route("/api/servers/<server_id>", methods=["PUT"])
+def api_servers_update(server_id):
+    body = flask_request.get_json() or {}
+    servers = load_servers()
+    for s in servers:
+        if s["id"] == server_id:
+            s["name"] = body.get("name", s["name"]).strip() or s["name"]
+            s["npm_url"] = body.get("npm_url", s["npm_url"]).strip() or s["npm_url"]
+            s["npm_username"] = body.get("npm_username", s["npm_username"]).strip() or s["npm_username"]
+            pwd = body.get("npm_password", _MASKED)
+            if pwd != _MASKED:
+                s["npm_password"] = pwd
+            save_servers(servers)
+            return jsonify({"status": "updated"})
+    return jsonify({"error": "not found"}), 404
+
+
+@app.route("/api/servers/<server_id>", methods=["DELETE"])
+def api_servers_delete(server_id):
+    servers = [s for s in load_servers() if s["id"] != server_id]
+    save_servers(servers)
+    return jsonify({"status": "deleted"})
 
 
 @app.route("/api/files/<path:filename>", methods=["DELETE"])
@@ -839,36 +1055,14 @@ def api_logs():
     return jsonify({"lines": list(_log_lines)})
 
 
-
-@app.route("/api/config")
-def api_config_get():
-    cfg = load_options()
-    def mask(val):
-        return _MASKED if val else ""
-    return jsonify({
-        "npm_url":      cfg.get("npm_url", ""),
-        "npm_username": cfg.get("npm_username", ""),
-        "npm_password": mask(cfg.get("npm_password", "")),
-    })
-
-
-@app.route("/api/config", methods=["POST"])
-def api_config_post():
-    body = flask_request.get_json() or {}
-    current = load_options()
-    updates = {}
-    for key in ("npm_url", "npm_username"):
-        if key in body:
-            updates[key] = body[key]
-    val = body.get("npm_password", _MASKED)
-    updates["npm_password"] = val if val != _MASKED else current.get("npm_password", "")
-    save_options(updates)
-    return jsonify({"status": "saved"})
-
-
 @app.route("/api/export", methods=["POST"])
 def api_export():
     global _op_running
+    body = flask_request.get_json() or {}
+    server_id = body.get("server_id", "").strip()
+    server = _get_server(server_id)
+    if not server:
+        return jsonify({"error": "server not found"}), 404
     if not _op_lock.acquire(blocking=False):
         return jsonify({"error": "Operation already in progress"}), 409
     _op_running = True
@@ -876,7 +1070,7 @@ def api_export():
     def run():
         global _op_running
         try:
-            export_all(load_options())
+            export_all(server)
         except Exception as exc:
             _log(f"[export] ERROR: {exc}")
         finally:
@@ -891,9 +1085,13 @@ def api_export():
 def api_import():
     global _op_running
     body = flask_request.get_json() or {}
+    server_id = body.get("server_id", "").strip()
     filename = body.get("filename", "").strip()
     if not filename:
         return jsonify({"error": "filename required"}), 400
+    server = _get_server(server_id)
+    if not server:
+        return jsonify({"error": "server not found"}), 404
     if not _op_lock.acquire(blocking=False):
         return jsonify({"error": "Operation already in progress"}), 409
     _op_running = True
@@ -901,7 +1099,7 @@ def api_import():
     def run():
         global _op_running
         try:
-            import_all(load_options(), filename)
+            import_all(server, filename)
         except Exception as exc:
             _log(f"[import] ERROR: {exc}")
         finally:
@@ -913,6 +1111,7 @@ def api_import():
 
 
 def main():
+    _migrate_legacy_config()
     _log(f"[server] Starting on port {INGRESS_PORT}")
     app.run(host="0.0.0.0", port=INGRESS_PORT, threaded=True)
 

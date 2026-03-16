@@ -24,11 +24,10 @@ Back up and restore your [Nginx Proxy Manager](https://nginxproxymanager.com/) c
 
 ## Configuration
 
-| Option | Type | Required | Default | Description |
-| --- | --- | --- | --- | --- |
-| `npm_url` | string | Yes | `http://homeassistant.local:81` | URL of your NPM instance |
-| `npm_username` | string | Yes | | NPM admin email |
-| `npm_password` | password | Yes | | NPM admin password |
+NPM server connections are managed in the add-on web UI under the **Settings** tab.
+Each server entry requires a name, URL, username, and password. Multiple servers can
+be added — use the **Source Server** and **Target Server** dropdowns on the
+Operations tab to select which NPM instance to export from or import into.
 
 ## Usage
 
@@ -75,7 +74,7 @@ Export files land in `/share/npm-export-import/` on the HA host, accessible via:
 - **Samba add-on** — browse to the `share` folder
 - **SSH add-on** — `/share/npm-export-import/`
 
-[version-shield]: https://img.shields.io/badge/version-0.1.17-blue.svg
+[version-shield]: https://img.shields.io/badge/version-0.1.18-blue.svg
 [project-stage-shield]: https://img.shields.io/badge/project%20stage-experimental-yellow.svg
 [maintenance-shield]: https://img.shields.io/maintenance/yes/2026.svg
 [forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg
