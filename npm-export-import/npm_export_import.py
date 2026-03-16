@@ -537,6 +537,7 @@ _HTML = r"""<!DOCTYPE html>
     #op-status-bar { min-height: 1.6rem; display: flex; align-items: center;
                      font-size: 0.82rem; color: var(--text-muted);
                      margin-bottom: 0.5rem; padding: 0 0.1rem; }
+    #op-status-bar:empty { min-height: 0; margin-bottom: 0; }
     .file-list { display: flex; flex-direction: column; gap: 0.5rem;
                  max-height: 248px; overflow-y: auto; }
     .file-row  { display: flex; align-items: center; gap: 0.75rem;

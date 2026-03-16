@@ -74,7 +74,7 @@ Export files land in `/share/npm-export-import/` on the HA host, accessible via:
 - **Samba add-on** — browse to the `share` folder
 - **SSH add-on** — `/share/npm-export-import/`
 
-[version-shield]: https://img.shields.io/badge/version-0.1.23-blue.svg
+[version-shield]: https://img.shields.io/badge/version-0.1.24-blue.svg
 [project-stage-shield]: https://img.shields.io/badge/project%20stage-experimental-yellow.svg
 [maintenance-shield]: https://img.shields.io/maintenance/yes/2026.svg
 [forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg

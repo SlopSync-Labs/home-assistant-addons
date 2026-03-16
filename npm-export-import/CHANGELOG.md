@@ -3,6 +3,16 @@
 
 All notable changes to the NPM Export Import add-on will be documented here.
 
+## [0.1.24] - 2026-03-15
+
+### Fixed
+
+- Operations tab no longer has a large gap between the tab bar and the Export
+  card — the status bar collapsed its `min-height` to zero when empty via
+  `#op-status-bar:empty`, making the spacing match the Settings tab
+
+---
+
 ## [0.1.23] - 2026-03-15
 
 ### Changed
