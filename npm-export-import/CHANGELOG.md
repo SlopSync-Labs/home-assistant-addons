@@ -3,6 +3,14 @@
 
 All notable changes to the NPM Export Import add-on will be documented here.
 
+## [0.1.26] - 2026-03-15
+
+### Changed
+
+- Renamed "Settings" tab to "Configuration"; updated all internal references to match
+
+---
+
 ## [0.1.25] - 2026-03-15
 
 ### Added
@@ -18,7 +26,7 @@ All notable changes to the NPM Export Import add-on will be documented here.
 
 - Operations tab no longer has a large gap between the tab bar and the Export
   card — the status bar collapsed its `min-height` to zero when empty via
-  `#op-status-bar:empty`, making the spacing match the Settings tab
+  `#op-status-bar:empty`, making the spacing match the Configuration tab
 
 ---
 
@@ -86,7 +94,7 @@ All notable changes to the NPM Export Import add-on will be documented here.
 
 ### Added
 
-- Multi-server support — configure any number of NPM instances in the Settings tab,
+- Multi-server support — configure any number of NPM instances in the Configuration tab,
   each with a name, URL, username, and password
 - Separate server dropdowns on Export and Import cards — enables exporting from
   one NPM instance and importing directly into another (migration workflow)
@@ -99,7 +107,7 @@ All notable changes to the NPM Export Import add-on will be documented here.
 ### Removed
 
 - `npm_url`, `npm_username`, `npm_password` top-level config options (now managed
-  via the Settings tab servers manager)
+  via the Configuration tab servers manager)
 - `hassio_api` / `hassio_role` from `config.json` — no longer needed, improves
   security rating
 
@@ -122,7 +130,7 @@ All notable changes to the NPM Export Import add-on will be documented here.
 ### Removed
 
 - Scheduled auto-export feature (`schedule_enabled`, `schedule_interval_hours` config
-  options, `_schedule_loop` background thread, Settings tab schedule card)
+  options, `_schedule_loop` background thread, Configuration tab schedule card)
 
 ---
 
@@ -253,7 +261,7 @@ All notable changes to the NPM Export Import add-on will be documented here.
   already working correctly
 - Added `_check()` helper to log NPM's error response body on failed imports
   instead of only reporting the HTTP status code
-- Settings tab: after saving, `/data/options.json` is now also written directly
+- Configuration tab: after saving, `/data/options.json` is now also written directly
   so `load_options()` returns fresh values without an add-on restart
 
 ---
@@ -262,7 +270,7 @@ All notable changes to the NPM Export Import add-on will be documented here.
 
 ### Added
 
-- Settings tab in the web UI — edit NPM connection details and schedule configuration
+- Configuration tab in the web UI — edit NPM connection details and schedule configuration
   without leaving the HA panel; changes are written back via the HA Supervisor API
   (`POST http://supervisor/addons/self/options`) and reflected in the HA add-on
   Configuration tab immediately

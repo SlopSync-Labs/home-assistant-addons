@@ -591,7 +591,7 @@ _HTML = r"""<!DOCTYPE html>
     .tab  { background: var(--tab-bg); color: var(--tab-fg); border-radius: 6px 6px 0 0;
             padding: 0.45rem 1.1rem; font-size: 0.85rem; font-weight: 500; }
     .tab.active { background: #03a9f4; color: #fff; }
-    /* Settings form */
+    /* Configuration form */
     .field-group { display: flex; flex-direction: column; gap: 0.6rem; }
     .field-group label { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
     .field-group input[type="text"],
@@ -620,7 +620,7 @@ _HTML = r"""<!DOCTYPE html>
 
   <div class="tabs">
     <button class="tab active" onclick="showTab('operations', this)">Operations</button>
-    <button class="tab" onclick="showTab('settings', this)">Settings</button>
+    <button class="tab" onclick="showTab('configuration', this)">Configuration</button>
   </div>
 
   <div id="tab-operations">
@@ -651,7 +651,7 @@ _HTML = r"""<!DOCTYPE html>
     </div>
   </div>
 
-  <div id="tab-settings" style="display:none">
+  <div id="tab-configuration" style="display:none">
     <div class="card">
       <h2>NPM Servers</h2>
       <div id="server-list"><span class="empty">No servers configured.</span></div>
@@ -728,10 +728,10 @@ _HTML = r"""<!DOCTYPE html>
 
     function showTab(name, btn) {
       document.getElementById('tab-operations').style.display = name === 'operations' ? '' : 'none';
-      document.getElementById('tab-settings').style.display   = name === 'settings'   ? '' : 'none';
+      document.getElementById('tab-configuration').style.display   = name === 'configuration'   ? '' : 'none';
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       btn.classList.add('active');
-      if (name === 'settings') loadServers();
+      if (name === 'configuration') loadServers();
     }
 
     // --- Servers ---

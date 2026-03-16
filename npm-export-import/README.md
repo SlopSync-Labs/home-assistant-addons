@@ -24,7 +24,7 @@ Back up and restore your [Nginx Proxy Manager](https://nginxproxymanager.com/) c
 
 ## Configuration
 
-NPM server connections are managed in the add-on web UI under the **Settings** tab.
+NPM server connections are managed in the add-on web UI under the **Configuration** tab.
 Each server entry requires a name, URL, username, and password. Multiple servers can
 be added — use the **Source Server** and **Target Server** dropdowns on the
 Operations tab to select which NPM instance to export from or import into.
@@ -74,7 +74,7 @@ Export files land in `/share/npm-export-import/` on the HA host, accessible via:
 - **Samba add-on** — browse to the `share` folder
 - **SSH add-on** — `/share/npm-export-import/`
 
-[version-shield]: https://img.shields.io/badge/version-0.1.25-blue.svg
+[version-shield]: https://img.shields.io/badge/version-0.1.26-blue.svg
 [project-stage-shield]: https://img.shields.io/badge/project%20stage-experimental-yellow.svg
 [maintenance-shield]: https://img.shields.io/maintenance/yes/2026.svg
 [forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg
