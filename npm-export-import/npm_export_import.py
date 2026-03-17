@@ -667,6 +667,8 @@ _HTML = r"""<!DOCTYPE html>
     .checkbox-label { display: flex; align-items: center; gap: 0.5rem;
                       font-size: 0.85rem; color: var(--text); font-weight: normal; }
     #save-status { font-size: 0.82rem; color: var(--text-muted); margin-left: 0.6rem; }
+    .page-footer { text-align: center; font-size: 0.75rem; color: var(--text-dim);
+                   margin-top: 1.5rem; padding-bottom: 0.5rem; }
   </style>
 </head>
 <body>
@@ -746,6 +748,7 @@ _HTML = r"""<!DOCTYPE html>
     </div>
   </div>
 
+  <div class="page-footer">SlopSync Labs &middot; v__VERSION__</div>
 </div><!-- .container -->
 
   <div id="otp-overlay">
@@ -1192,9 +1195,17 @@ def _icon_data_uri():
         return ""
 
 
+def _app_version():
+    try:
+        with open("/app/config.json") as f:
+            return json.load(f).get("version", "")
+    except Exception:
+        return ""
+
+
 @app.route("/")
 def index():
-    return _HTML.replace("__ICON_URI__", _icon_data_uri())
+    return _HTML.replace("__ICON_URI__", _icon_data_uri()).replace("__VERSION__", _app_version())
 
 
 @app.route("/api/status")

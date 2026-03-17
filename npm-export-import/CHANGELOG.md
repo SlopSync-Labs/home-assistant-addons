@@ -3,6 +3,17 @@
 
 All notable changes to the NPM Export Import add-on will be documented here.
 
+## [0.2.6] - 2026-03-17
+
+### Added
+
+- Footer at the bottom of the page: "SlopSync Labs · v{version}" — version is
+  read from `config.json` at runtime so it always matches the deployed build
+- `config.json` is now copied into the Docker image to enable runtime version
+  reads
+
+---
+
 ## [0.2.5] - 2026-03-17
 
 ### Fixed

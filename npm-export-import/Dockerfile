@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir requests flask
 COPY run.sh /run.sh
 COPY npm_export_import.py /app/npm_export_import.py
 COPY icon.png /app/icon.png
+COPY config.json /app/config.json
 RUN chmod a+x /run.sh
 
 CMD ["/run.sh"]
