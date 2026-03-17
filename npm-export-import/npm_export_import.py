@@ -415,7 +415,6 @@ def import_all(cfg, import_file, request_ssl=False):
                     "meta": {
                         "letsencrypt_email": cfg["npm_username"],
                         "letsencrypt_agree": True,
-                        "dns_challenge": False,
                     },
                 },
                 timeout=120,

@@ -3,6 +3,16 @@
 
 All notable changes to the NPM Export Import add-on will be documented here.
 
+## [0.2.3] - 2026-03-17
+
+### Fixed
+
+- LE cert request no longer sends `dns_challenge` in the `meta` payload — NPM's
+  schema rejects it as an additional property, causing all cert requests to fail
+  with a 400 error
+
+---
+
 ## [0.2.2] - 2026-03-17
 
 ### Added
