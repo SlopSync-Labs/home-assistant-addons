@@ -3,6 +3,27 @@
 
 All notable changes to the NPM Export Import add-on will be documented here.
 
+## [0.2.1] - 2026-03-16
+
+### Added
+
+- **Download button** — icon button next to Import/Delete; downloads the selected
+  export file directly to the browser via `GET /api/files/<filename>`
+- `GET /api/files/<filename>` Flask endpoint — serves the export file as an
+  attachment download with the same filename validation as the DELETE endpoint
+
+### Changed
+
+- **Delete button** now shows a trash icon (Bootstrap Icons SVG) instead of text;
+  the "Confirm?" arming state still shows text, then restores the icon on timeout
+  or confirmation
+- **Operation status messages** moved from the shared top-of-page status bar into
+  inline `<span>` elements next to each section heading — export status appears
+  beside "Export", import status beside "Import"; the shared `#op-status-bar` div
+  has been removed
+
+---
+
 ## [0.2.0] - 2026-03-15
 
 ### Added

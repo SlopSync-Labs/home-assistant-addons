@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime, timezone
 
 import requests
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask import request as flask_request
 
 OPTIONS_PATH = "/data/options.json"
@@ -534,10 +534,8 @@ _HTML = r"""<!DOCTYPE html>
                    margin-bottom: 1.25rem; }
     .page-title  { display: flex; align-items: center; gap: 0.6rem; }
     .app-icon    { width: 36px; height: 36px; border-radius: 8px; display: block; }
-    #op-status-bar { min-height: 1.6rem; display: flex; align-items: center;
-                     font-size: 0.82rem; color: var(--text-muted);
-                     margin-bottom: 0.5rem; padding: 0 0.1rem; }
-    #op-status-bar:empty { min-height: 0; margin-bottom: 0; }
+    .op-status-inline { font-size: 0.78rem; color: var(--text-muted); font-weight: normal; margin-left: 0.5rem; }
+    .icon-btn { padding: 0.45rem 0.6rem; display: inline-flex; align-items: center; justify-content: center; }
     .file-list { display: flex; flex-direction: column; gap: 0.5rem;
                  max-height: 248px; overflow-y: auto; }
     .file-row  { display: flex; align-items: center; gap: 0.75rem;
@@ -624,22 +622,22 @@ _HTML = r"""<!DOCTYPE html>
   </div>
 
   <div id="tab-operations">
-    <div id="op-status-bar"></div>
 
     <div class="card">
-      <h2>Export</h2>
+      <h2>Export <span id="export-status" class="op-status-inline"></span></h2>
       <label style="font-size:0.8rem;color:var(--text-muted);font-weight:500;display:block;margin-bottom:0.4rem">Source Server</label>
       <select id="sel-export-server" class="server-select" onchange="saveServerPref('export',this.value)"></select>
       <button class="btn-primary" id="btn-export" onclick="triggerExport()">Export Now</button>
     </div>
 
     <div class="card">
-      <h2>Import</h2>
+      <h2>Import <span id="import-status" class="op-status-inline"></span></h2>
       <label style="font-size:0.8rem;color:var(--text-muted);font-weight:500;display:block;margin-bottom:0.4rem">Target Server</label>
       <select id="sel-import-server" class="server-select" onchange="saveServerPref('import',this.value)"></select>
       <div class="import-actions">
         <button class="btn-primary" id="btn-import" onclick="triggerImport()" disabled>Import Selected</button>
-        <button class="btn-danger" id="btn-delete" onclick="triggerDelete()" disabled>Delete</button>
+        <button class="btn-secondary icon-btn" id="btn-download" onclick="triggerDownload()" disabled title="Download selected file"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/></svg></button>
+        <button class="btn-danger icon-btn" id="btn-delete" onclick="triggerDelete()" disabled title="Delete selected file"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/></svg></button>
       </div>
       <p class="meta" style="margin-top:0.75rem">Select a backup file to restore into NPM.</p>
       <div class="file-list" id="file-list"><span class="empty">Loading…</span></div>
@@ -725,6 +723,9 @@ _HTML = r"""<!DOCTYPE html>
     let _op_running_client = false;
     let _pendingOp = null;
     let _challengeToken = null;
+    let _currentOpType = null;
+
+    const _TRASH_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/></svg>';
 
     function showTab(name, btn) {
       document.getElementById('tab-operations').style.display = name === 'operations' ? '' : 'none';
@@ -863,8 +864,16 @@ _HTML = r"""<!DOCTYPE html>
         document.getElementById('btn-export').disabled = busy || !_servers.length;
         document.getElementById('btn-import').disabled = busy || !_selectedFile;
         document.getElementById('btn-delete').disabled = busy || !_selectedFile;
-        document.getElementById('op-status-bar').textContent =
-          d.running ? '\u23f3 Operation in progress\u2026' : '';
+        document.getElementById('btn-download').disabled = !_selectedFile;
+        if (d.running) {
+          const inExport = _currentOpType !== 'import';
+          document.getElementById('export-status').textContent = inExport ? '\u23f3 Operation in progress\u2026' : '';
+          document.getElementById('import-status').textContent = !inExport ? '\u23f3 Operation in progress\u2026' : '';
+        } else {
+          _currentOpType = null;
+          document.getElementById('export-status').textContent = '';
+          document.getElementById('import-status').textContent = '';
+        }
 
         if (d.pending_2fa && !_challengeToken) {
           _challengeToken = d.pending_2fa.challenge_token;
@@ -888,6 +897,7 @@ _HTML = r"""<!DOCTYPE html>
         document.getElementById('btn-import').disabled = false;
         document.getElementById('btn-delete').disabled = false;
       }
+      document.getElementById('btn-download').disabled = false;
     }
 
     async function loadFiles() {
@@ -899,6 +909,7 @@ _HTML = r"""<!DOCTYPE html>
           _selectedFile = null;
           document.getElementById('btn-import').disabled = true;
           document.getElementById('btn-delete').disabled = true;
+          document.getElementById('btn-download').disabled = true;
           return;
         }
         el.innerHTML = files.map(f =>
@@ -910,6 +921,7 @@ _HTML = r"""<!DOCTYPE html>
         ).join('');
         document.getElementById('btn-import').disabled = _op_running_client || !_selectedFile;
         document.getElementById('btn-delete').disabled = _op_running_client || !_selectedFile;
+        document.getElementById('btn-download').disabled = !_selectedFile;
       } catch (_) {}
     }
 
@@ -928,9 +940,10 @@ _HTML = r"""<!DOCTYPE html>
       if (!serverId) return;
       saveServerPref('export', serverId);
       _pendingOp = { type: 'export', serverId };
+      _currentOpType = 'export';
       document.getElementById('btn-export').disabled = true;
       document.getElementById('btn-import').disabled = true;
-      document.getElementById('op-status-bar').textContent = '\u23f3 Starting export\u2026';
+      document.getElementById('export-status').textContent = '\u23f3 Starting export\u2026';
       await fetch(base + '/api/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -961,9 +974,10 @@ _HTML = r"""<!DOCTYPE html>
       if (!serverId) return;
       saveServerPref('import', serverId);
       _pendingOp = { type: 'import', serverId, filename: _selectedFile };
+      _currentOpType = 'import';
       btn.disabled = true;
       document.getElementById('btn-export').disabled = true;
-      document.getElementById('op-status-bar').textContent = '\u23f3 Starting import\u2026';
+      document.getElementById('import-status').textContent = '\u23f3 Starting import\u2026';
       fetch(base + '/api/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -982,7 +996,7 @@ _HTML = r"""<!DOCTYPE html>
         clearTimeout(_deleteArmTimer);
         _deleteArmTimer = setTimeout(() => {
           _deleteArmed = false;
-          btn.textContent = 'Delete';
+          btn.innerHTML = _TRASH_ICON;
           btn.style.background = '';
           btn.style.color = '';
         }, 3000);
@@ -990,7 +1004,7 @@ _HTML = r"""<!DOCTYPE html>
       }
       clearTimeout(_deleteArmTimer);
       _deleteArmed = false;
-      btn.textContent = 'Delete';
+      btn.innerHTML = _TRASH_ICON;
       btn.style.background = '';
       btn.style.color = '';
       const filename = _selectedFile;
@@ -999,6 +1013,19 @@ _HTML = r"""<!DOCTYPE html>
       document.getElementById('btn-delete').disabled = true;
       fetch(base + '/api/files/' + encodeURIComponent(filename), { method: 'DELETE' })
         .then(() => loadFiles());
+    }
+
+    async function triggerDownload() {
+      if (!_selectedFile) return;
+      const r = await fetch(base + '/api/files/' + encodeURIComponent(_selectedFile));
+      if (!r.ok) return;
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = _selectedFile;
+      a.click();
+      URL.revokeObjectURL(url);
     }
 
     async function submitOtp() {
@@ -1021,33 +1048,35 @@ _HTML = r"""<!DOCTYPE html>
       const op = _pendingOp;
       _pendingOp = null;
       if (!op) {
-        document.getElementById('op-status-bar').textContent = '\u2713 Authenticated \u2014 retry your operation';
+        document.getElementById('export-status').textContent = '\u2713 Authenticated \u2014 retry your operation';
         return;
       }
       if (op.type === 'export') {
+        _currentOpType = 'export';
         document.getElementById('btn-export').disabled = true;
-        document.getElementById('op-status-bar').textContent = '\u23f3 Starting export\u2026';
+        document.getElementById('export-status').textContent = '\u23f3 Starting export\u2026';
         const er = await fetch(base + '/api/export', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ server_id: op.serverId })
         });
         if (!er.ok) {
           const ed = await er.json().catch(() => ({}));
-          document.getElementById('op-status-bar').textContent =
+          document.getElementById('export-status').textContent =
             '\u2717 ' + (ed.error || 'Failed to start export');
           document.getElementById('btn-export').disabled = false;
         }
       } else if (op.type === 'import') {
+        _currentOpType = 'import';
         document.getElementById('btn-import').disabled = true;
         document.getElementById('btn-export').disabled = true;
-        document.getElementById('op-status-bar').textContent = '\u23f3 Starting import\u2026';
+        document.getElementById('import-status').textContent = '\u23f3 Starting import\u2026';
         const ir = await fetch(base + '/api/import', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ server_id: op.serverId, filename: op.filename })
         });
         if (!ir.ok) {
           const id2 = await ir.json().catch(() => ({}));
-          document.getElementById('op-status-bar').textContent =
+          document.getElementById('import-status').textContent =
             '\u2717 ' + (id2.error || 'Failed to start import');
           document.getElementById('btn-export').disabled = false;
           document.getElementById('btn-import').disabled = false;
@@ -1157,6 +1186,15 @@ def api_servers_delete(server_id):
     servers = [s for s in load_servers() if s["id"] != server_id]
     save_servers(servers)
     return jsonify({"status": "deleted"})
+
+
+@app.route("/api/files/<path:filename>", methods=["GET"])
+def api_file_download(filename):
+    if not filename.endswith(".json") or "/" in filename or ".." in filename:
+        return jsonify({"error": "invalid filename"}), 400
+    if not os.path.isfile(os.path.join(EXPORT_DIR, filename)):
+        return jsonify({"error": "not found"}), 404
+    return send_from_directory(EXPORT_DIR, filename, as_attachment=True)
 
 
 @app.route("/api/files/<path:filename>", methods=["DELETE"])
