@@ -1,0 +1,84 @@
+name: Update Nginx Proxy Manager
+
+on:
+  schedule:
+    # Run once a day at 06:00 UTC
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get latest NPM upstream release
+        id: upstream
+        run: |
+          latest=$(curl -fsSL \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/NginxProxyManager/nginx-proxy-manager/releases/latest \
+            | jq -r '.tag_name | ltrimstr("v")')
+          echo "version=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Get current pinned version from Dockerfile
+        id: current
+        run: |
+          pinned=$(grep -oP 'FROM jc21/nginx-proxy-manager:\K[^\s]+' \
+            nginx-proxy-manager/Dockerfile)
+          echo "version=$pinned" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether an update is needed
+        id: check
+        run: |
+          if [ "${{ steps.upstream.outputs.version }}" = "${{ steps.current.outputs.version }}" ]; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "Upstream (${{ steps.upstream.outputs.version }}) matches pinned version — nothing to do."
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+            echo "Update needed: ${{ steps.current.outputs.version }} → ${{ steps.upstream.outputs.version }}"
+          fi
+
+      - name: Bump Dockerfile
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          sed -i "s|FROM jc21/nginx-proxy-manager:${{ steps.current.outputs.version }}|FROM jc21/nginx-proxy-manager:${{ steps.upstream.outputs.version }}|" \
+            nginx-proxy-manager/Dockerfile
+
+      - name: Bump HA add-on patch version in config.json
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          current_addon=$(jq -r '.version' nginx-proxy-manager/config.json)
+          # Increment the patch segment
+          IFS='.' read -r major minor patch <<< "$current_addon"
+          new_addon="${major}.${minor}.$((patch + 1))"
+          jq --arg v "$new_addon" '.version = $v' nginx-proxy-manager/config.json \
+            > nginx-proxy-manager/config.json.tmp
+          mv nginx-proxy-manager/config.json.tmp nginx-proxy-manager/config.json
+          echo "HA add-on version: $current_addon → $new_addon"
+
+      - name: Open pull request
+        if: steps.check.outputs.needed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: "auto/npm-${{ steps.upstream.outputs.version }}"
+          commit-message: |
+            nginx-proxy-manager: bump upstream to ${{ steps.upstream.outputs.version }}
+          title: "chore(nginx-proxy-manager): bump upstream to ${{ steps.upstream.outputs.version }}"
+          body: |
+            Automated upstream version bump.
+
+            | | Version |
+            |---|---|
+            | **NPM upstream** | `${{ steps.current.outputs.version }}` → `${{ steps.upstream.outputs.version }}` |
+
+            [Upstream release notes](https://github.com/NginxProxyManager/nginx-proxy-manager/releases/tag/v${{ steps.upstream.outputs.version }})
+          labels: "dependencies,automated"
+          delete-branch: true
