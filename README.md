@@ -18,6 +18,10 @@ A curated collection of Home Assistant apps maintained by [SlopSync-Labs](https:
 
 - WIP: [Nginx Proxy Manager](./nginx-proxy-manager/README.md)
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/chart?repos=SlopSync-Labs/home-assistant-apps&type=date&legend=top-left)](https://www.star-history.com/?repos=SlopSync-Labs%2Fhome-assistant-apps&type=date&legend=top-left)
+
 ## License
 
 MIT — see [LICENSE](./LICENSE)
